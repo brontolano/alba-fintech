@@ -249,12 +249,12 @@ erDiagram
 ## 8. Implementation Roadmap
 
 ### Phase 1: MVP Core (Minggu 1-4)
-- [ ] Setup project (Next.js + Tailwind + shadcn/ui)
-- [ ] Autentikasi + Role-based access
-- [ ] Input transaksi + foto bukti
-- [ ] Buku besar digital + running balance
-- [ ] Dashboard per role (Pimpinan/Manager/Staff)
-- [ ] Bottom navigation (5 menu)
+- [x] Setup project (Next.js + Tailwind + shadcn/ui)
+- [x] Autentikasi + Role-based access
+- [x] Input transaksi + foto bukti
+- [x] Buku besar digital + running balance
+- [x] Dashboard per role (Pimpinan/Manager/Staff)
+- [x] Bottom navigation (5 menu)
 
 ### Phase 2: Workflow & Approval (Minggu 5-6)
 - [ ] Approval workflow multi-level
