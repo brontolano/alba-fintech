@@ -1,0 +1,86 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            Int       @id @default(autoincrement())
+  email         String    @unique
+  passwordHash  String
+  name          String
+  role          String    // Pimpinan, Manager, Staff
+  unit          String    // Kantor, Kantin, Koperasi
+  createdAt     DateTime  @default(now())
+
+  transactions    Transaction[]   @relation("UserTransactions")
+  approvedTrans   Transaction[]   @relation("ApprovedTransactions")
+  approvals       Approval[]
+  reconciliations Reconciliation[]
+}
+
+model Transaction {
+  id              Int       @id @default(autoincrement())
+  userId          Int
+  transactionDate DateTime
+  unit            String
+  type            String    // Debit, Kredit
+  method          String    // Tunai, Transfer
+  category        String
+  amount          Decimal
+  description     String?
+  photoUrl        String?
+  status          String    // Draft, Submitted, Pending, Approved, Rejected
+  approvedById    Int?
+  approvedAt      DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  user            User      @relation("UserTransactions", fields: [userId], references: [id])
+  approvedBy      User?     @relation("ApprovedTransactions", fields: [approvedById], references: [id])
+  approvals       Approval[]
+}
+
+model Approval {
+  id            Int       @id @default(autoincrement())
+  transactionId Int
+  approverId    Int
+  level         String    // Manager, Pimpinan
+  status        String    // Approved, Rejected
+  notes         String?
+  createdAt     DateTime  @default(now())
+
+  transaction   Transaction @relation(fields: [transactionId], references: [id])
+  approver      User        @relation(fields: [approverId], references: [id])
+}
+
+model Reconciliation {
+  id                 Int       @id @default(autoincrement())
+  userId             Int
+  reconciliationDate DateTime
+  unit               String
+  physicalCash       Decimal
+  digitalBalance     Decimal
+  difference         Decimal
+  notes              String?
+  status             String    // Pending, Validated
+  createdAt          DateTime  @default(now())
+
+  user               User      @relation(fields: [userId], references: [id])
+}
+
+model Category {
+  id        Int      @id @default(autoincrement())
+  name      String
+  type      String   // Debit, Kredit
+  unit      String   // Kantor, Kantin, Koperasi, All
+  createdAt DateTime @default(now())
+}
