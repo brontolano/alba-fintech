@@ -2,15 +2,19 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Home, Receipt, CheckSquare, BarChart3, RefreshCcw } from 'lucide-react'
+import { useSession } from 'next-auth/react'
+import { Home, Receipt, CheckSquare, BarChart3, RefreshCcw, ShoppingCart } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 export function BottomNav() {
   const pathname = usePathname()
+  const { data: session } = useSession()
+  const retailEnabled = (session?.user as any)?.retailModuleEnabled === true
 
   const navItems = [
     { name: 'Beranda', href: '/dashboard', icon: Home },
     { name: 'Transaksi', href: '/transactions', icon: Receipt },
+    ...(retailEnabled ? [{ name: 'Kasir', href: '/pos', icon: ShoppingCart }] : []),
     { name: 'Persetujuan', href: '/approvals', icon: CheckSquare },
     { name: 'Laporan', href: '/reports', icon: BarChart3 },
     { name: 'Rekonsiliasi', href: '/reconciliations', icon: RefreshCcw },
@@ -22,10 +26,10 @@ export function BottomNav() {
   return (
     <div className="fixed bottom-0 left-0 z-50 w-full h-16 bg-white border-t border-gray-200 dark:bg-gray-900 dark:border-gray-800">
       <div className="grid h-full max-w-lg grid-cols-5 mx-auto font-medium">
-        {navItems.map((item) => {
+        {navItems.map((item, idx) => {
           const Icon = item.icon
           const isActive = pathname.startsWith(item.href)
-          
+
           return (
             <Link
               key={item.name}

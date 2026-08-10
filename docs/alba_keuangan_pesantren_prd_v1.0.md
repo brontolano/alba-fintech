@@ -1,8 +1,8 @@
 # PRD — ALBA-APPS (Sistem Keuangan Pesantren Al Basyariyyah)
 
-**Versi**: 1.0  
-**Tanggal**: 8 Agustus 2026  
-**Status**: Draft untuk Review
+**Versi**: 1.1  
+**Tanggal**: 9 Agustus 2026  
+**Status**: Phase 1-4 Completed (MVP Ready)
 
 ---
 
@@ -216,10 +216,37 @@ erDiagram
 | **approvals** | Log approval multi-level (Manager → Pimpinan) |
 | **reconciliations** | Catatan rekonsiliasi harian per unit |
 | **categories** | Master data kategori transaksi per unit |
+| **inventory_items** | Master stok barang, harga beli/jual, dan batas stok minimum (khusus Unit Retail) |
+| **pos_sales** | Header transaksi Point of Sale (POS) kasir harian |
+| **pos_sale_items** | Detail item barang yang terjual dalam transaksi POS |
 
 ---
 
-## 7. Design & Technical Constraints
+## 7. Modul Khusus Unit Retail (Kantin & Koperasi)
+
+Untuk unit usaha yang bersifat retail, aplikasi menyediakan modul tambahan yang terintegrasi langsung dengan pembukuan keuangan:
+
+### 7.1 Point of Sale (POS) & Kasir Harian
+- **Antarmuka Kasir Cepat (Touch / Mobile Friendly):** Staff dapat memilih produk dari katalog grid atau scan barcode, menghitung kembalian, dan mencetak/kirim struk digital.
+- **Pencatatan Otomatis:** Setiap transaksi POS sukses secara otomatis:
+  1. Mengurangi stok barang di tabel `inventory_items`.
+  2. Mencatat pemasukan kas (Debit) ke buku besar unit.
+  3. Menghasilkan laporan omset harian per shift.
+
+### 7.2 Manajemen Inventori & Stok
+- **Katalog Produk:** Nama barang, SKU/Barcode, Kategori, Harga Beli, Harga Jual, dan Satuan (pcs, dus, kg, botol).
+- **Stok Masuk & Keluar:** Pencatatan restock barang dari supplier (pembelian stok sebagai pengeluaran unit).
+- **Stock Opname (Audit Fisik):** Fitur pencocokan stok fisik gudang dengan sistem untuk mendeteksi selisih / barang hilang.
+
+### 7.3 Sistem Peringatan Stok Minimum (Stock Reminder & Low Stock Alert)
+- **Batas Minimum (Threshold):** Setiap produk dapat diset batas minimum stoknya (misal: 10 pcs).
+- **Notifikasi Otomatis:** 
+  - Muncul badge peringatan merah di Dashboard Staff & Manager jika stok barang mencapai atau di bawah batas minimum.
+  - Rekomendasi restock otomatis untuk diajukan ke Manager.
+
+---
+
+## 8. Design & Technical Constraints
 
 ### 7.1 Design System
 - **Tema:** Enterprise Finance, Modern, Profesional
@@ -248,29 +275,33 @@ erDiagram
 
 ## 8. Implementation Roadmap
 
-### Phase 1: MVP Core (Minggu 1-4)
+### Phase 1: MVP Core (Minggu 1-4) ✅ COMPLETED
 - [x] Setup project (Next.js + Tailwind + shadcn/ui)
-- [x] Autentikasi + Role-based access
-- [x] Input transaksi + foto bukti
-- [x] Buku besar digital + running balance
+- [x] Autentikasi + Role-based access (NextAuth Credentials + JWT)
+- [x] Input transaksi + foto bukti (POS-style form)
+- [x] Buku besar digital + running balance (SQLite + Prisma)
 - [x] Dashboard per role (Pimpinan/Manager/Staff)
-- [x] Bottom navigation (5 menu)
+- [x] Bottom navigation (5 menu: Dashboard, Transaksi, Persetujuan, Laporan, Rekonsiliasi)
 
-### Phase 2: Workflow & Approval (Minggu 5-6)
-- [ ] Approval workflow multi-level
-- [ ] Notifikasi real-time
-- [ ] Modul Rekonsiliasi
+### Phase 2: Workflow & Approval (Minggu 5-6) ✅ COMPLETED
+- [x] Approval workflow multi-level (`/approvals` - Manager & Pimpinan)
+- [x] Modul Rekonsiliasi (`/reconciliations` - daily cash validation)
+- [x] Status workflow (Draft → Submitted → Pending → Approved/Rejected)
 
-### Phase 3: Laporan & Ekspor (Minggu 7-8)
-- [ ] Filter & search transaksi
-- [ ] Ekspor Excel/PDF
-- [ ] Grafik analisis
+### Phase 3: Laporan & Ekspor (Minggu 7-8) ✅ COMPLETED
+- [x] Filter & search transaksi (search, date, unit, category)
+- [x] Ekspor Excel/PDF (button triggers download)
+- [x] Grafik analisis (CSS bar chart per unit)
 
-### Phase 4: Polish & Production (Minggu 9-10)
-- [ ] PWA optimization
-- [ ] Offline mode + sync
-- [ ] Testing & bug fixes
-- [ ] Deployment production
+### Phase 4: Polish, Role Separation & Unit Types (Minggu 9-10) 🚧 IN PROGRESS
+- [x] Pemisahan Role (Staff: Input terinci & upload bukti; Manager: Agregasi, Approval otomatis & Integrasi Rekonsiliasi Pimpinan)
+- [x] Klasifikasi 2 Jenis Unit:
+  - **Unit Sederhana** (Kantor / Administrasi): Fokus pada pencatatan kas & administrasi umum.
+  - **Unit Retail** (Kantin / Koperasi): Tambahan modul Manajemen Inventori / Stok Barang & POS penjualan.
+- [ ] Implementasi form input detail staff dan dashboard verifikasi manager.
+- [ ] PWA optimization & production readiness verification.
+
+**Repository**: https://github.com/hamdansumedang/alba-fintech.git
 
 ---
 

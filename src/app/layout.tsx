@@ -26,6 +26,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       lang="id"
       className={`${inter.variable} ${jetbrainsMono.variable} h-full antialiased`}
     >
+      <head>
+        <link
+          rel="stylesheet"
+          href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0..1,0"
+        />
+      </head>
       <body className="min-h-full flex flex-col bg-gray-50 text-slate-900 pb-16">
         <Providers>
           <main className="flex-1 max-w-md w-full mx-auto bg-white shadow-sm relative">

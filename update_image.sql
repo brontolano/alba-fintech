@@ -1,0 +1,1 @@
+UPDATE User SET image = 'https://lh3.googleusercontent.com/aida-public/AB6AXuBby-BVi-dFHGlR9pbPhuiMAuDno2odekL2K5lGHSMjzJcKcwvdfaohDc2d8Sbr6ClYkPSbx34I9VgiaqjS2nH2pCnIbID8KnETYOmCSd6y5vUMaq6aztRXA3dQUVE40xfJGemNAQDi2voL2rHecQURq8LWd8uNneWHAqs5AKStWC0E4TMxCAZrkSLzdtZqvW8ENPVnFs2WJg0yCnFhB8avw1BzXeHdFgzw3I8G1muE8tJ17UYp2Dx1' WHERE email = 'pimpinan@alba.id';

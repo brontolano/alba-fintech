@@ -36,6 +36,8 @@ export const authOptions: NextAuthOptions = {
           name: user.name,
           role: user.role,
           unit: user.unit,
+          unitType: user.unitType,
+          image: user.image,
         }
       }
     })
@@ -46,6 +48,9 @@ export const authOptions: NextAuthOptions = {
         token.id = user.id
         token.role = user.role
         token.unit = user.unit
+        token.unitType = (user as any).unitType
+        token.image = user.image
+        token.retailModuleEnabled = (user as any).retailModuleEnabled
       }
       return token
     },
@@ -54,6 +59,9 @@ export const authOptions: NextAuthOptions = {
         session.user.id = token.id as string
         session.user.role = token.role as string
         session.user.unit = token.unit as string
+        (session.user as any).unitType = token.unitType as string
+        (session.user as any).retailModuleEnabled = token.retailModuleEnabled as boolean
+        session.user.image = token.image as string | null
       }
       return session
     }

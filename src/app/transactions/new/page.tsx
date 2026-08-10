@@ -76,27 +76,14 @@ function TransactionForm() {
       <div className="space-y-4 bg-white p-4 rounded-2xl shadow-sm border border-slate-100">
         <div>
           <label className="block text-sm font-medium text-slate-700 mb-1">Kategori</label>
-          <select 
+          <input
+            type="text"
             value={formData.category}
             onChange={(e) => setFormData({ ...formData, category: e.target.value })}
             className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#1E3A5F] focus:border-transparent outline-none"
+            placeholder="Tulis kategori manual (cth: Penjualan Sembako, Belanja ATK)"
             required
-          >
-            <option value="">Pilih Kategori</option>
-            {formData.type === 'Debit' ? (
-              <>
-                <option value="Penjualan">Penjualan</option>
-                <option value="SPP">Pembayaran SPP</option>
-                <option value="Donasi">Donasi</option>
-              </>
-            ) : (
-              <>
-                <option value="Belanja Modal">Belanja Modal</option>
-                <option value="Operasional">Operasional</option>
-                <option value="Gaji">Gaji Pegawai</option>
-              </>
-            )}
-          </select>
+          />
         </div>
 
         <div>

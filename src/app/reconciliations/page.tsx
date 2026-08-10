@@ -1,8 +1,12 @@
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/app/api/auth/[...nextauth]/route"
 import { redirect } from "next/navigation"
-import { ArrowLeft, RefreshCcw, AlertTriangle, CheckCircle2 } from "lucide-react"
 import Link from "next/link"
+import { prisma } from "@/lib/prisma"
+
+function formatRupiah(n: number): string {
+  return `Rp ${n.toLocaleString('id-ID')}`
+}
 
 export default async function ReconciliationsPage() {
   const session = await getServerSession(authOptions)
@@ -11,109 +15,119 @@ export default async function ReconciliationsPage() {
     redirect('/login')
   }
 
-  const { user } = session
+  const reconciliations = await prisma.reconciliation.findMany({
+    orderBy: { createdAt: 'desc' },
+    include: { user: true }
+  })
+
+  const pendingTotal = reconciliations
+    .filter(r => r.status === 'Menunggu')
+    .reduce((sum, r) => sum + Number(r.difference), 0)
 
   return (
-    <div className="min-h-screen bg-slate-50 pb-20">
-      {/* Header */}
-      <div className="bg-white border-b border-slate-100 px-4 py-4 flex items-center gap-3 sticky top-0 z-10">
-        <Link href="/dashboard" className="p-2 -ml-2 hover:bg-slate-50 rounded-full">
-          <ArrowLeft className="w-5 h-5 text-slate-600" />
-        </Link>
-        <h1 className="text-lg font-bold text-slate-900">Rekonsiliasi Harian</h1>
-      </div>
-
-      <div className="p-4 space-y-6">
-        {/* Status Card */}
-        <div className="bg-[#1E3A5F] text-white p-5 rounded-2xl shadow-md">
-          <div className="flex items-center gap-2 mb-4">
-            <RefreshCcw className="w-5 h-5 text-blue-300" />
-            <h2 className="font-medium">Status Hari Ini</h2>
+    <div className="bg-[#faf9fc] text-[#1a1c1e] font-body min-h-screen pb-28">
+      {/* TopAppBar */}
+      <header className="w-full top-0 sticky bg-white dark:bg-[#2f3033] z-40 shadow-sm flex items-center justify-center px-6 py-3 max-w-[1280px] mx-auto">
+        <div className="flex items-center justify-between w-full">
+          <div className="flex items-center gap-3">
+            <Link href="/profile" className="w-10 h-10 rounded-full bg-[#1e3a5f] flex items-center justify-center text-white font-bold overflow-hidden hover:opacity-90 transition-opacity">
+              {session.user.image ? (
+                <img src={session.user.image} alt="Profile" className="w-full h-full object-cover" />
+              ) : (
+                <span>{(session.user.name || 'AL').charAt(0).toUpperCase()}</span>
+              )}
+            </Link>
+            <h1 className="text-xl font-bold text-[#022448]">ALBA Finance</h1>
           </div>
-          <div className="flex justify-between items-end">
-            <div>
-              <p className="text-sm text-blue-200 mb-1">Saldo Digital (Sistem)</p>
-              <p className="text-2xl font-bold font-mono">Rp 12.500.000</p>
-            </div>
-            <div className="text-right">
-              <span className="inline-flex items-center gap-1 bg-amber-500/20 text-amber-300 px-2.5 py-1 rounded-lg text-xs font-medium">
-                <AlertTriangle className="w-3 h-3" />
-                Belum Stor
-              </span>
-            </div>
-          </div>
+          <button aria-label="Notifications" className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-[#e9e7eb] transition-colors text-[#022448]">
+            <span className="material-symbols-outlined">notifications</span>
+          </button>
         </div>
+      </header>
 
-        {/* Form Rekonsiliasi */}
-        <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100">
-          <h3 className="font-bold text-slate-900 mb-4">Form Setoran Fisik</h3>
-          
-          <form className="space-y-4">
-            <div>
-              <label className="block text-xs font-medium text-slate-500 mb-1 uppercase tracking-wider">Uang Fisik (Rp)</label>
-              <input
-                type="number"
-                className="w-full px-0 py-2 text-2xl font-bold font-mono bg-transparent border-b-2 border-slate-200 focus:border-[#1E3A5F] outline-none transition-colors"
-                placeholder="0"
-                required
-              />
+      <main className="max-w-[1280px] mx-auto px-6 py-5 space-y-5">
+        {/* Summary Card */}
+        <section className="bg-[#022448] text-white rounded-2xl p-6 shadow-lg relative overflow-hidden">
+          <div className="absolute -right-10 -top-10 opacity-10 pointer-events-none">
+            <span className="material-symbols-outlined text-[150px]">account_balance_wallet</span>
+          </div>
+          <div className="relative z-10">
+            <h2 className="text-xl mb-2 font-semibold text-[#adc8f5]">Menunggu Verifikasi</h2>
+            <div className="text-3xl sm:text-4xl font-bold font-mono mb-3 tracking-tight">{formatRupiah(pendingTotal)}</div>
+            <div className="flex items-center gap-2 text-[#adc8f5] text-sm">
+              <span className="material-symbols-outlined text-base">business</span>
+              <span>Dari {reconciliations.length} Unit</span>
             </div>
+          </div>
+        </section>
 
-            <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
-              <div className="flex justify-between text-sm mb-2">
-                <span className="text-slate-500">Saldo Sistem</span>
-                <span className="font-mono font-medium">Rp 12.500.000</span>
-              </div>
-              <div className="flex justify-between text-sm mb-2">
-                <span className="text-slate-500">Uang Fisik</span>
-                <span className="font-mono font-medium">Rp 0</span>
-              </div>
-              <div className="w-full h-px bg-slate-200 my-2"></div>
-              <div className="flex justify-between text-sm font-bold">
-                <span className="text-slate-700">Selisih</span>
-                <span className="font-mono text-rose-600">- Rp 12.500.000</span>
-              </div>
-            </div>
+        {/* List Setoran */}
+        <section className="space-y-4">
+          <div className="flex justify-between items-center mb-2">
+            <h3 className="text-xl font-bold text-[#1a1c1e]">Daftar Setoran Unit</h3>
+            <button className="text-[#022448] text-sm font-medium hover:underline">Lihat Semua</button>
+          </div>
 
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Catatan Selisih (Opsional)</label>
-              <textarea
-                className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#1E3A5F] focus:border-transparent outline-none resize-none"
-                placeholder="Jelaskan jika ada selisih..."
-                rows={2}
-              />
-            </div>
-
-            <button 
-              type="button" 
-              className="w-full bg-[#1E3A5F] hover:bg-[#152a45] text-white py-4 rounded-xl text-sm font-medium mt-2"
+          {reconciliations.map((item) => {
+            const iconName = item.unit.toLowerCase().includes('kantin') ? 'restaurant' : item.unit.toLowerCase().includes('koperasi') ? 'shopping_basket' : 'storefront'
+            const dateStr = new Date(item.createdAt).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })
+            return (
+            <div 
+              key={item.id} 
+              className={`rounded-2xl p-4 border border-[#e3e2e6] shadow-sm transition-shadow hover:shadow-md ${
+                item.status === 'Diverifikasi' ? 'bg-[#faf9fc] opacity-75' : 'bg-white'
+              }`}
             >
-              Ajukan Rekonsiliasi
-            </button>
-          </form>
-        </div>
-
-        {/* Riwayat */}
-        <div>
-          <h3 className="font-bold text-slate-900 mb-3">Riwayat Terakhir</h3>
-          <div className="space-y-3">
-            {[1, 2].map((i) => (
-              <div key={i} className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-emerald-50 rounded-full flex items-center justify-center">
-                    <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+              <div className="flex justify-between items-start mb-3">
+                <div className="flex gap-3 items-center">
+                  <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
+                    item.status === 'Diverifikasi' ? 'bg-[#e3e2e6] text-[#43474e]' : 'bg-[#a2e7fd] text-[#1b697c]'
+                  }`}>
+                    <span className="material-symbols-outlined">{iconName}</span>
                   </div>
                   <div>
-                    <p className="font-bold text-slate-900 text-sm">8 Agustus 2026</p>
-                    <p className="text-xs text-slate-500">Valid (Selisih Rp 0)</p>
+                    <h4 className="text-base font-semibold text-[#1a1c1e]">Unit {item.unit}</h4>
+                    <p className="text-xs text-[#43474e]">{dateStr}</p>
                   </div>
                 </div>
-                <p className="font-mono font-bold text-sm">Rp 11.200.000</p>
+
+                {item.status === 'Menunggu' ? (
+                  <div className="bg-[#ffdad6] text-[#93000a] px-3 py-1 rounded-full text-xs font-semibold flex items-center gap-1">
+                    <span className="material-symbols-outlined text-sm">pending</span>
+                    Menunggu
+                  </div>
+                ) : (
+                  <div className="bg-[#e9e7eb] text-[#1a1c1e] px-3 py-1 rounded-full text-xs font-semibold flex items-center gap-1">
+                    <span className="material-symbols-outlined text-[#16677a] text-sm" style={{ fontVariationSettings: "'FILL' 1" }}>check_circle</span>
+                    Diverifikasi
+                  </div>
+                )}
               </div>
-            ))}
-          </div>
-        </div>
-      </div>
+
+              <div className="flex justify-between items-end border-t border-[#e3e2e6] pt-3">
+                <div>
+                  <p className="text-xs text-[#43474e] mb-1">Nominal Setoran</p>
+                  <p className={`text-xl font-bold font-mono ${item.status === 'Diverifikasi' ? 'text-[#74777f]' : 'text-[#1a1c1e]'}`}>
+                    {formatRupiah(Number(item.difference))}
+                  </p>
+                </div>
+
+                {item.status === 'Menunggu' ? (
+                  <button className="bg-[#022448] text-white px-4 py-2 rounded-2xl text-sm font-semibold hover:bg-[#1e3a5f] transition-colors shadow-sm">
+                    Verifikasi Setoran
+                  </button>
+                ) : (
+                  <button className="bg-[#e3e2e6] text-[#43474e] px-4 py-2 rounded-2xl text-sm font-semibold cursor-not-allowed" disabled>
+                    Telah Diverifikasi
+                  </button>
+                )}
+              </div>
+            </div>
+          )})}
+        </section>
+      </main>
+
+
     </div>
   )
 }

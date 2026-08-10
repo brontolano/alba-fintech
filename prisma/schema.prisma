@@ -12,14 +12,20 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// SQLite doesn't support native enums. Values are kept as Strings
+// and constrained at the application layer via TS unions in `src/lib/enums.ts`.
+
 model User {
-  id            Int       @id @default(autoincrement())
-  email         String    @unique
-  passwordHash  String
-  name          String
-  role          String    // Pimpinan, Manager, Staff
-  unit          String    // Kantor, Kantin, Koperasi
-  createdAt     DateTime  @default(now())
+  id                  Int       @id @default(autoincrement())
+  email               String    @unique
+  passwordHash        String
+  name                String
+  image               String?
+  role                String    // Pimpinan, Manager, Staff
+  unit                String    // Kantor, Kantin, Koperasi, All
+  unitType            String    @default("Sederhana") // Sederhana, Retail
+  retailModuleEnabled Boolean   @default(false)
+  createdAt           DateTime  @default(now())
 
   transactions    Transaction[]   @relation("UserTransactions")
   approvedTrans   Transaction[]   @relation("ApprovedTransactions")
@@ -38,15 +44,15 @@ model Transaction {
   amount          Decimal
   description     String?
   photoUrl        String?
-  status          String    // Draft, Submitted, Pending, Approved, Rejected
+  status          String    @default("Submitted") // Draft, Submitted, Pending, Approved, Rejected
   approvedById    Int?
   approvedAt      DateTime?
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
-  user            User      @relation("UserTransactions", fields: [userId], references: [id])
-  approvedBy      User?     @relation("ApprovedTransactions", fields: [approvedById], references: [id])
-  approvals       Approval[]
+  user       User       @relation("UserTransactions", fields: [userId], references: [id])
+  approvedBy User?      @relation("ApprovedTransactions", fields: [approvedById], references: [id])
+  approvals  Approval[]
 }
 
 model Approval {
@@ -58,8 +64,8 @@ model Approval {
   notes         String?
   createdAt     DateTime  @default(now())
 
-  transaction   Transaction @relation(fields: [transactionId], references: [id])
-  approver      User        @relation(fields: [approverId], references: [id])
+  transaction Transaction @relation(fields: [transactionId], references: [id])
+  approver    User        @relation(fields: [approverId], references: [id])
 }
 
 model Reconciliation {
@@ -71,10 +77,10 @@ model Reconciliation {
   digitalBalance     Decimal
   difference         Decimal
   notes              String?
-  status             String    // Pending, Validated
+  status             String    @default("Pending") // Pending, Validated
   createdAt          DateTime  @default(now())
 
-  user               User      @relation(fields: [userId], references: [id])
+  user User @relation(fields: [userId], references: [id])
 }
 
 model Category {

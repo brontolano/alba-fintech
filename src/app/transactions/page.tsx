@@ -1,8 +1,34 @@
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/app/api/auth/[...nextauth]/route"
 import { redirect } from "next/navigation"
-import { ArrowLeft, Search, Filter, ArrowDownRight, ArrowUpRight } from "lucide-react"
+import { ArrowLeft, TrendingUp, Plus } from "lucide-react"
 import Link from "next/link"
+import { prisma } from "@/lib/prisma"
+
+function formatRupiah(n: number): string {
+  return `Rp ${n.toLocaleString('id-ID')}`
+}
+
+function groupLabel(date: Date): string {
+  const today = new Date()
+  const d = new Date(date)
+  const isSameDay = (a: Date, b: Date) =>
+    a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate()
+  const yesterday = new Date(today)
+  yesterday.setDate(today.getDate() - 1)
+  if (isSameDay(d, today)) return "Hari Ini"
+  if (isSameDay(d, yesterday)) return "Kemarin"
+  return d.toLocaleDateString("id-ID")
+}
+
+function unitIcon(unit: string): string {
+  switch (unit) {
+    case "Kantor": return "business"
+    case "Kantin": return "restaurant"
+    case "Koperasi": return "local_mall"
+    default: return "receipt_long"
+  }
+}
 
 export default async function TransactionsPage() {
   const session = await getServerSession(authOptions)
@@ -11,123 +37,127 @@ export default async function TransactionsPage() {
     redirect('/login')
   }
 
-  // Mock data
-  const transactions = [
-    {
-      id: 1,
-      date: '09 Agu 2026',
-      time: '14:30',
-      category: 'Penjualan',
-      description: 'Penjualan seragam santri baru',
-      type: 'Debit',
-      amount: 1500000,
-      status: 'Approved',
-    },
-    {
-      id: 2,
-      date: '09 Agu 2026',
-      time: '10:15',
-      category: 'Operasional',
-      description: 'Beli ATK kantor',
-      type: 'Kredit',
-      amount: 250000,
-      status: 'Approved',
-    },
-    {
-      id: 3,
-      date: '08 Agu 2026',
-      time: '16:45',
-      category: 'SPP',
-      description: 'Pembayaran SPP Kelas 10',
-      type: 'Debit',
-      amount: 3500000,
-      status: 'Approved',
-    }
-  ]
+  const rawTransactions = await prisma.transaction.findMany({
+    orderBy: { transactionDate: "desc" },
+  })
+
+  const transactions = rawTransactions.map((t) => ({
+    id: t.id,
+    group: groupLabel(t.transactionDate),
+    unit: t.unit,
+    category: t.category,
+    description: t.description ?? t.category,
+    type: t.type,
+    amount: Number(t.amount),
+    time: new Date(t.transactionDate).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }),
+    icon: unitIcon(t.unit),
+  }))
+
+  const totalDebit = transactions.filter((t) => t.type === "Debit").reduce((acc, t) => acc + t.amount, 0)
+  const totalKredit = transactions.filter((t) => t.type === "Kredit").reduce((acc, t) => acc + t.amount, 0)
+  const totalBalance = totalDebit - totalKredit
 
   return (
-    <div className="min-h-screen bg-slate-50 pb-20">
-      {/* Header */}
-      <div className="bg-white border-b border-slate-100 px-4 py-4 sticky top-0 z-10">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-3">
-            <Link href="/dashboard" className="p-2 -ml-2 hover:bg-slate-50 rounded-full">
-              <ArrowLeft className="w-5 h-5 text-slate-600" />
-            </Link>
-            <h1 className="text-lg font-bold text-slate-900">Buku Besar</h1>
+    <div className="min-h-screen bg-[#f4f3f7] text-[#1a1c1e] pb-28 font-sans">
+      {/* TopAppBar */}
+      <header className="sticky top-0 bg-[#faf9fc] shadow-sm z-40 px-6 py-3 flex justify-between items-center">
+        <Link href="/profile" className="w-10 h-10 flex items-center justify-center text-[#43474e] hover:bg-[#e3e2e6]/20 rounded-full transition-colors overflow-hidden">
+          {session.user.image ? (
+            <img src={session.user.image} alt="Profile" className="w-full h-full object-cover" />
+          ) : (
+            <span className="font-bold">{(session.user.name || 'A').charAt(0).toUpperCase()}</span>
+          )}
+        </Link>
+        <h1 className="text-xl font-bold text-[#022448] flex-1 text-center truncate">Riwayat Transaksi</h1>
+        <button aria-label="Notifications" className="w-10 h-10 flex items-center justify-center text-[#43474e] hover:bg-[#e3e2e6]/20 rounded-full transition-colors relative">
+          <span className="material-symbols-outlined">notifications</span>
+          <span className="absolute top-2 right-2 w-2 h-2 bg-[#ba1a1a] rounded-full border border-white"></span>
+        </button>
+      </header>
+
+      <main className="px-6 pt-4 flex flex-col gap-5 max-w-[1280px] mx-auto">
+        {/* Hero Section: Virtual Balance Card */}
+        <section className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#022448] to-[#1e3a5f] p-6 text-white shadow-lg flex flex-col gap-3">
+          <div className="absolute -right-12 -top-12 opacity-10 pointer-events-none">
+            <span className="material-symbols-outlined text-[160px]" style={{ fontVariationSettings: "'FILL' 1" }}>account_balance_wallet</span>
           </div>
-          <button className="p-2 bg-slate-100 text-slate-600 rounded-full hover:bg-slate-200">
-            <Filter className="w-4 h-4" />
-          </button>
-        </div>
+          <div className="relative z-10 flex flex-col gap-1">
+            <span className="text-sm text-[#adc8f5] font-medium">Total Saldo Gabungan</span>
+            <span className="text-3xl sm:text-4xl font-bold font-mono tracking-tight">{formatRupiah(totalBalance)}</span>
+          </div>
+          <div className="relative z-10 flex items-center mt-2">
+            <div className="bg-[#10b981]/20 text-white border border-[#10b981]/30 px-3 py-1 rounded-full flex items-center gap-1 backdrop-blur-sm text-xs font-medium">
+              <TrendingUp className="w-3.5 h-3.5 text-[#10b981]" />
+              <span>+2.4% dari bulan lalu</span>
+            </div>
+          </div>
+        </section>
 
-        {/* Search */}
-        <div className="relative">
-          <Search className="w-5 h-5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-          <input 
-            type="text" 
-            placeholder="Cari transaksi..." 
-            className="w-full pl-10 pr-4 py-2.5 bg-slate-100 border-transparent rounded-xl text-sm focus:bg-white focus:border-[#1E3A5F] focus:ring-2 focus:ring-[#1E3A5F]/20 outline-none transition-all"
-          />
-        </div>
-      </div>
+        {/* Filter Chips */}
+        <section className="overflow-x-auto no-scrollbar -mx-6 px-6 pb-2 pt-1">
+          <div className="flex gap-2 w-max">
+            <button className="px-4 py-2 bg-[#022448] text-white rounded-full text-sm font-medium shadow-sm transition-all active:scale-95">
+              Semua Transaksi
+            </button>
+            <button className="px-4 py-2 bg-[#faf9fc] text-[#1a1c1e] border border-[#c4c6cf] rounded-full text-sm font-medium shadow-sm transition-all active:scale-95">
+              Uang Masuk
+            </button>
+            <button className="px-4 py-2 bg-[#faf9fc] text-[#1a1c1e] border border-[#c4c6cf] rounded-full text-sm font-medium shadow-sm transition-all active:scale-95">
+              Uang Keluar
+            </button>
+          </div>
+        </section>
 
-      {/* Transaction List */}
-      <div className="p-4 space-y-6">
-        <div>
-          <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Hari Ini</h3>
-          <div className="space-y-3">
-            {transactions.filter(t => t.date === '09 Agu 2026').map((t) => (
-              <div key={t.id} className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex items-center gap-4">
-                <div className={`w-12 h-12 rounded-full flex items-center justify-center shrink-0 ${
-                  t.type === 'Debit' ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'
-                }`}>
-                  {t.type === 'Debit' ? <ArrowDownRight className="w-6 h-6" /> : <ArrowUpRight className="w-6 h-6" />}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <h4 className="font-bold text-slate-900 text-sm truncate">{t.category}</h4>
-                  <p className="text-xs text-slate-500 truncate">{t.description}</p>
-                </div>
-                <div className="text-right shrink-0">
-                  <p className={`font-bold font-mono text-sm ${
-                    t.type === 'Debit' ? 'text-emerald-600' : 'text-rose-600'
-                  }`}>
-                    {t.type === 'Debit' ? '+' : '-'} Rp {t.amount.toLocaleString('id-ID')}
-                  </p>
-                  <p className="text-[10px] text-slate-400 mt-0.5">{t.time}</p>
-                </div>
+        {/* Transaction List */}
+        <section className="flex flex-col gap-4">
+          {transactions.length === 0 ? (
+            <div className="bg-white rounded-2xl p-6 text-center text-sm text-[#43474e] border border-[#eeedf1]">
+              Belum ada transaksi. Tekan tombol + untuk menambah baru.
+            </div>
+          ) : (
+            Object.entries(
+              transactions.reduce<Record<string, typeof transactions>>((acc, t) => {
+                if (!acc[t.group]) acc[t.group] = []
+                acc[t.group].push(t)
+                return acc
+              }, {})
+            ).map(([group, items]) => (
+              <div key={group} className="flex flex-col gap-3 pt-1">
+                <h3 className="text-xs font-semibold text-[#43474e] uppercase tracking-wider">{group}</h3>
+                {items.map((t) => (
+                  <div key={t.id} className="bg-white rounded-2xl p-4 flex items-center gap-4 shadow-sm border border-[#eeedf1] hover:shadow transition-all">
+                    <div className="w-12 h-12 rounded-full bg-[#a2e7fd]/30 flex items-center justify-center text-[#16677a] shrink-0">
+                      <span className="material-symbols-outlined">{t.icon}</span>
+                    </div>
+                    <div className="flex-1 min-w-0 flex flex-col justify-center">
+                      <div className="flex justify-between items-start mb-1">
+                        <span className="text-xs font-medium text-[#43474e] truncate pr-2">{t.unit}</span>
+                        <span className={`font-mono text-sm font-bold ${t.type === 'Debit' ? 'text-[#10b981]' : 'text-[#ef4444]'}`}>
+                          {t.type === 'Debit' ? '+' : '-'} {formatRupiah(t.amount)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm font-medium text-[#1a1c1e] truncate pr-2">{t.description}</span>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${t.type === 'Debit' ? 'bg-[#10b981]/10 text-[#10b981]' : 'bg-[#ef4444]/10 text-[#ef4444]'}`}>
+                            {t.type === 'Debit' ? 'IN' : 'OUT'}
+                          </span>
+                          <span className="text-xs text-[#74777f]">{t.time}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
-        </div>
+            ))
+          )}
+        </section>
+      </main>
 
-        <div>
-          <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Kemarin</h3>
-          <div className="space-y-3">
-            {transactions.filter(t => t.date === '08 Agu 2026').map((t) => (
-              <div key={t.id} className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex items-center gap-4">
-                <div className={`w-12 h-12 rounded-full flex items-center justify-center shrink-0 ${
-                  t.type === 'Debit' ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'
-                }`}>
-                  {t.type === 'Debit' ? <ArrowDownRight className="w-6 h-6" /> : <ArrowUpRight className="w-6 h-6" />}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <h4 className="font-bold text-slate-900 text-sm truncate">{t.category}</h4>
-                  <p className="text-xs text-slate-500 truncate">{t.description}</p>
-                </div>
-                <div className="text-right shrink-0">
-                  <p className={`font-bold font-mono text-sm ${
-                    t.type === 'Debit' ? 'text-emerald-600' : 'text-rose-600'
-                  }`}>
-                    {t.type === 'Debit' ? '+' : '-'} Rp {t.amount.toLocaleString('id-ID')}
-                  </p>
-                  <p className="text-[10px] text-slate-400 mt-0.5">{t.time}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
+      {/* Floating Action Button */}
+      <Link href="/transactions/new" className="fixed bottom-20 right-6 w-14 h-14 bg-[#022448] text-white rounded-full shadow-lg flex items-center justify-center active:scale-95 transition-transform duration-200 z-40 hover:bg-[#1e3a5f]">
+        <Plus className="w-7 h-7" />
+      </Link>
     </div>
   )
 }

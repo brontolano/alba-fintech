@@ -1,8 +1,24 @@
+'use client'
+
+import { useState } from 'react'
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/app/api/auth/[...nextauth]/route"
 import { redirect } from "next/navigation"
-import { CheckCircle, XCircle, Clock, ArrowLeft } from "lucide-react"
 import Link from "next/link"
+import { prisma } from "@/lib/prisma"
+
+function formatRupiah(n: number): string {
+  return `Rp ${n.toLocaleString('id-ID')}`
+}
+
+function unitIcon(unit: string): string {
+  switch (unit) {
+    case "Kantor": return "business"
+    case "Kantin": return "restaurant"
+    case "Koperasi": return "local_mall"
+    default: return "receipt_long"
+  }
+}
 
 export default async function ApprovalsPage() {
   const session = await getServerSession(authOptions)
@@ -11,107 +27,134 @@ export default async function ApprovalsPage() {
     redirect('/login')
   }
 
-  const { user } = session
+  // Manager sees Submitted + Pending, Pimpinan sees Pending
+  const whereClause = session.user.role === "Manager"
+    ? { OR: [{ status: "Submitted" }, { status: "Pending" }] }
+    : { status: "Pending" }
 
-  // Only Manager and Pimpinan can access approvals
-  if (user.role === 'Staff') {
-    redirect('/dashboard')
-  }
+  const pending = await prisma.transaction.findMany({
+    where: whereClause,
+    orderBy: { transactionDate: "desc" },
+  })
 
-  // Mock data for pending approvals
-  const pendingApprovals = [
-    {
-      id: 1,
-      date: '2026-08-09',
-      unit: 'Kantin',
-      type: 'Kredit',
-      category: 'Belanja Modal',
-      amount: 2500000,
-      description: 'Beli kulkas showcase baru',
-      submittedBy: 'Staff Kantin',
-      status: 'Pending Manager',
-    },
-    {
-      id: 2,
-      date: '2026-08-09',
-      unit: 'Kantin',
-      type: 'Kredit',
-      category: 'Operasional',
-      amount: 500000,
-      description: 'Beli bahan baku snack',
-      submittedBy: 'Staff Kantin',
-      status: 'Pending Manager',
-    }
-  ]
+  const approvals = pending.map((t) => ({
+    id: t.id,
+    unit: t.unit,
+    title: t.category,
+    amount: Number(t.amount),
+    date: new Date(t.transactionDate).toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" }) + " WIB",
+    icon: unitIcon(t.unit),
+    status: t.status,
+    description: t.description,
+    type: t.type,
+    method: t.method,
+  }))
 
   return (
-    <div className="min-h-screen bg-slate-50 pb-20">
-      {/* Header */}
-      <div className="bg-white border-b border-slate-100 px-4 py-4 flex items-center gap-3 sticky top-0 z-10">
-        <Link href="/dashboard" className="p-2 -ml-2 hover:bg-slate-50 rounded-full">
-          <ArrowLeft className="w-5 h-5 text-slate-600" />
-        </Link>
-        <h1 className="text-lg font-bold text-slate-900">Persetujuan Transaksi</h1>
-      </div>
-
-      <div className="p-4 space-y-4">
-        {/* Tabs */}
-        <div className="flex bg-slate-200/50 p-1 rounded-xl">
-          <button className="flex-1 py-2 text-sm font-medium bg-white text-[#1E3A5F] rounded-lg shadow-sm">
-            Menunggu ({pendingApprovals.length})
-          </button>
-          <button className="flex-1 py-2 text-sm font-medium text-slate-500 hover:text-slate-700">
-            Riwayat
+    <div className="bg-background text-on-background font-body min-h-screen flex flex-col pb-28">
+      {/* TopAppBar */}
+      <header className="w-full top-0 sticky bg-background dark:bg-on-primary-fixed z-40 transition-colors duration-200">
+        <div className="flex justify-between items-center px-6 py-3 max-w-[1280px] mx-auto">
+          <div className="flex items-center gap-3">
+            <Link href="/profile" className="w-10 h-10 rounded-full bg-surface-variant flex items-center justify-center overflow-hidden font-bold text-primary hover:opacity-90 transition-opacity">
+              {session.user.image ? (
+                <img src={session.user.image} alt="Profile" className="w-full h-full object-cover" />
+              ) : (
+                <span>{(session.user.name || 'AL').charAt(0).toUpperCase()}</span>
+              )}
+            </Link>
+            <h1 className="font-semibold text-xl text-primary dark:text-primary-fixed">ALBA Finance</h1>
+          </div>
+          <button aria-label="Notifications" className="text-on-surface-variant dark:text-outline-variant hover:bg-surface-container-low dark:hover:bg-primary-container p-2 rounded-full transition-colors duration-200 relative">
+            <span className="material-symbols-outlined">notifications</span>
+            <span className="absolute top-2 right-2 w-2 h-2 bg-[#ba1a1a] rounded-full border border-white"></span>
           </button>
         </div>
+      </header>
 
-        {/* List */}
-        <div className="space-y-3">
-          {pendingApprovals.map((item) => (
-            <div key={item.id} className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100">
-              <div className="flex justify-between items-start mb-3">
-                <div>
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-amber-600 bg-amber-50 px-2 py-1 rounded-md">
-                    {item.status}
-                  </span>
-                  <h3 className="font-bold text-slate-900 mt-2">{item.category}</h3>
-                  <p className="text-xs text-slate-500">{item.date} • {item.unit}</p>
-                </div>
-                <div className="text-right">
-                  <p className="font-bold font-mono text-rose-600">
-                    - Rp {item.amount.toLocaleString('id-ID')}
-                  </p>
-                  <p className="text-xs text-slate-500 mt-1">Oleh: {item.submittedBy}</p>
-                </div>
-              </div>
-              
-              <p className="text-sm text-slate-700 bg-slate-50 p-3 rounded-xl mb-4">
-                "{item.description}"
-              </p>
+      {/* Main Content */}
+      <main className="flex-grow px-6 py-6 max-w-[1280px] mx-auto w-full">
+        <div className="mb-6">
+          <h2 className="text-3xl font-bold text-on-surface mb-2">Persetujuan</h2>
+          <div className="inline-flex items-center gap-2 bg-[#a2e7fd]/30 px-3 py-2 rounded-lg">
+            <span className="material-symbols-outlined text-[#16677a]" style={{ fontVariationSettings: "'FILL' 1" }}>info</span>
+            <p className="text-sm font-medium text-on-surface-variant">Ada {approvals.length} transaksi menunggu persetujuan Anda</p>
+          </div>
+        </div>
 
-              <div className="flex gap-2">
-                <button className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-emerald-50 text-emerald-700 rounded-xl font-medium text-sm hover:bg-emerald-100 transition">
-                  <CheckCircle className="w-4 h-4" />
-                  Setujui
-                </button>
-                <button className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-rose-50 text-rose-700 rounded-xl font-medium text-sm hover:bg-rose-100 transition">
-                  <XCircle className="w-4 h-4" />
-                  Tolak
-                </button>
-              </div>
-            </div>
+        {/* Approval Cards Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {approvals.map((item) => (
+            <ApprovalCard key={item.id} item={item} userRole={session.user.role} />
           ))}
+        </div>
+      </main>
+    </div>
+  )
+}
 
-          {pendingApprovals.length === 0 && (
-            <div className="text-center py-12">
-              <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                <CheckCircle className="w-8 h-8 text-slate-400" />
-              </div>
-              <p className="text-slate-500 font-medium">Semua transaksi sudah disetujui</p>
-            </div>
-          )}
+function ApprovalCard({ item, userRole }: { item: any; userRole: string }) {
+  const [loading, setLoading] = useState(false)
+
+  const handleAction = async (action: 'approve' | 'reject') => {
+    setLoading(true)
+    try {
+      const res = await fetch('/api/approvals', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ transactionId: item.id, action }),
+      })
+      if (res.ok) {
+        window.location.reload()
+      } else {
+        alert('Gagal memproses persetujuan')
+      }
+    } catch (e) {
+      alert('Error: ' + e)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const statusLabel = item.status === 'Submitted' ? 'Menunggu Manager' : 'Menunggu Pimpinan'
+  const statusColor = item.status === 'Submitted' ? 'bg-blue-100 text-blue-800' : 'bg-amber-100 text-amber-800'
+
+  return (
+    <article className="bg-white rounded-2xl p-4 shadow-sm border border-[#e3e2e6] flex flex-col gap-4 hover:shadow-md transition-shadow">
+      <div className="flex justify-between items-start">
+        <div>
+          <span className="inline-block px-2.5 py-1 bg-[#e3e2e6] text-[#43474e] rounded-full text-xs font-medium mb-2">{item.unit}</span>
+          <h3 className="text-lg font-bold text-[#1a1c1e]">{item.title}</h3>
+          <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-semibold ${statusColor} mt-1`}>{statusLabel}</span>
+        </div>
+        <div className="w-10 h-10 rounded-full bg-[#f4f3f7] flex items-center justify-center text-[#022448]">
+          <span className="material-symbols-outlined">{item.icon}</span>
         </div>
       </div>
-    </div>
+      <div className="flex flex-col gap-1">
+        <span className="text-xs font-medium text-[#43474e]">Nominal Transaksi</span>
+        <span className="font-mono text-2xl text-[#022448] font-bold">{formatRupiah(item.amount)}</span>
+      </div>
+      <div className="flex items-center gap-2 text-[#43474e]">
+        <span className="material-symbols-outlined text-sm">calendar_today</span>
+        <span className="text-xs">{item.date}</span>
+      </div>
+      <div className="flex gap-2 mt-auto pt-2">
+        <button
+          onClick={() => handleAction('reject')}
+          disabled={loading}
+          className="flex-1 py-2 px-4 rounded-2xl border-2 border-[#ba1a1a] text-[#ba1a1a] text-sm font-medium hover:bg-[#ffdad6]/30 transition-colors disabled:opacity-50"
+        >
+          Tolak
+        </button>
+        <button
+          onClick={() => handleAction('approve')}
+          disabled={loading}
+          className="flex-1 py-2 px-4 rounded-2xl bg-[#022448] text-white text-sm font-medium hover:bg-[#1e3a5f] transition-colors shadow-sm disabled:opacity-50"
+        >
+          {loading ? 'Memproses...' : 'Setujui'}
+        </button>
+      </div>
+    </article>
   )
 }
