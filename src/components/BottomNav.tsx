@@ -14,7 +14,7 @@ export function BottomNav() {
   const navItems = [
     { name: 'Beranda', href: '/dashboard', icon: Home },
     { name: 'Transaksi', href: '/transactions', icon: Receipt },
-    ...(retailEnabled ? [{ name: 'Kasir', href: '/pos', icon: ShoppingCart }] : []),
+    ...(retailEnabled ? [{ name: 'Kasir', href: '/pos', icon: ShoppingCart }, { name: 'Inventori', href: '/inventory', icon: Package }] : []),
     { name: 'Persetujuan', href: '/approvals', icon: CheckSquare },
     { name: 'Laporan', href: '/reports', icon: BarChart3 },
     { name: 'Rekonsiliasi', href: '/reconciliations', icon: RefreshCcw },

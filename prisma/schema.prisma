@@ -31,6 +31,8 @@ model User {
   approvedTrans   Transaction[]   @relation("ApprovedTransactions")
   approvals       Approval[]
   reconciliations Reconciliation[]
+  posSales        PosSale[]
+  inventoryItems  InventoryItem[]
 }
 
 model Transaction {
@@ -89,4 +91,48 @@ model Category {
   type      String   // Debit, Kredit
   unit      String   // Kantor, Kantin, Koperasi, All
   createdAt DateTime @default(now())
+}
+
+model InventoryItem {
+  id          Int       @id @default(autoincrement())
+  name        String
+  sku         String?   @unique
+  category    String?
+  buyPrice    Decimal?
+  sellPrice   Decimal
+  unit        String    // pcs, dus, kg, botol
+  stock       Int       @default(0)
+  minStock    Int       @default(0)
+  unitName    String    // Kantor, Kantin, Koperasi, All
+  createdById Int
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  createdBy User @relation(fields: [createdById], references: [id])
+  saleItems PosSaleItem[]
+}
+
+model PosSale {
+  id           Int       @id @default(autoincrement())
+  unitName     String    // Kantor, Kantin, Koperasi
+  totalAmount  Decimal
+  paymentMethod String   // Tunai, Transfer
+  createdAt    DateTime  @default(now())
+  createdById  Int
+
+  createdBy User         @relation(fields: [createdById], references: [id])
+  items     PosSaleItem[]
+}
+
+model PosSaleItem {
+  id            Int       @id @default(autoincrement())
+  posSaleId     Int
+  inventoryId   Int
+  quantity      Int
+  priceAtSale   Decimal
+  subtotal      Decimal
+  createdAt     DateTime  @default(now())
+
+  posSale   PosSale       @relation(fields: [posSaleId], references: [id], onDelete: Cascade)
+  inventory InventoryItem @relation(fields: [inventoryId], references: [id])
 }
