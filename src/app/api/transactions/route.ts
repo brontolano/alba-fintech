@@ -9,7 +9,18 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
+  const isManager = session.user.role === "Manager"
+  const isStaff = session.user.role === "Staff"
+  const userUnit = session.user.unit
+
+  const whereClause = isManager
+    ? userUnit === "All" ? {} : { unit: userUnit }
+    : isStaff
+      ? { userId: Number(session.user.id) }
+      : {}
+
   const transactions = await prisma.transaction.findMany({
+    where: whereClause,
     orderBy: { transactionDate: "desc" },
     include: {
       user: { select: { id: true, name: true, role: true, unit: true, image: true } },
@@ -59,13 +70,13 @@ export async function POST(req: Request) {
   }
 }
 
-function serializeTransaction(t: any) {
+function serializeTransaction(t: Record<string, unknown>) {
   return {
     ...t,
     amount: t.amount ? Number(t.amount) : 0,
-    transactionDate: t.transactionDate?.toISOString?.() ?? t.transactionDate,
-    approvedAt: t.approvedAt?.toISOString?.() ?? t.approvedAt,
-    createdAt: t.createdAt?.toISOString?.() ?? t.createdAt,
-    updatedAt: t.updatedAt?.toISOString?.() ?? t.updatedAt,
+    transactionDate: (t.transactionDate instanceof Date ? t.transactionDate.toISOString() : t.transactionDate),
+    approvedAt: (t.approvedAt instanceof Date ? t.approvedAt.toISOString() : t.approvedAt),
+    createdAt: (t.createdAt instanceof Date ? t.createdAt.toISOString() : t.createdAt),
+    updatedAt: (t.updatedAt instanceof Date ? t.updatedAt.toISOString() : t.updatedAt),
   }
 }

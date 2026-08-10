@@ -1,54 +1,81 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/app/api/auth/[...nextauth]/route"
 import { redirect } from "next/navigation"
 import Link from "next/link"
 import { prisma } from "@/lib/prisma"
+import type { User, TxStatus } from "@/lib/enums"
+
+type ApprovalItem = {
+  id: number
+  unit: User["unit"]
+  title: string
+  amount: number
+  date: string
+  icon: string
+  status: TxStatus
+  description: string | null
+  type: string
+  method: string
+}
 
 function formatRupiah(n: number): string {
   return `Rp ${n.toLocaleString('id-ID')}`
 }
 
-function unitIcon(unit: string): string {
+function unitIcon(unit: User["unit"]): string {
   switch (unit) {
-    case "Kantor": return "business"
-    case "Kantin": return "restaurant"
-    case "Koperasi": return "local_mall"
-    default: return "receipt_long"
+    case "Kantor":
+      return "business"
+    case "Kantin":
+      return "restaurant"
+    case "Koperasi":
+      return "local_mall"
+    default:
+      return "receipt_long"
   }
 }
 
-export default async function ApprovalsPage() {
-  const session = await getServerSession(authOptions)
+export default function ApprovalsPage() {
+  const [session, setSession] = useState<Awaited<ReturnType<typeof getServerSession>> | null>(null)
+  const [approvals, setApprovals] = useState<ApprovalItem[]>([])
 
-  if (!session) {
-    redirect('/login')
-  }
+  useEffect(() => {
+    getServerSession(authOptions).then((s) => {
+      if (!s) {
+        redirect('/login')
+        return
+      }
+      setSession(s)
 
-  // Manager sees Submitted + Pending, Pimpinan sees Pending
-  const whereClause = session.user.role === "Manager"
-    ? { OR: [{ status: "Submitted" }, { status: "Pending" }] }
-    : { status: "Pending" }
+      const whereClause = s.user.role === "Manager"
+        ? { OR: [{ status: "Submitted" as TxStatus }, { status: "Pending" as TxStatus }] }
+        : { status: "Pending" as TxStatus }
 
-  const pending = await prisma.transaction.findMany({
-    where: whereClause,
-    orderBy: { transactionDate: "desc" },
-  })
+      prisma.transaction.findMany({
+        where: whereClause,
+        orderBy: { transactionDate: "desc" },
+      }).then((pending) => {
+        const mapped: ApprovalItem[] = pending.map((t) => ({
+          id: t.id,
+          unit: t.unit as User["unit"],
+          title: t.category,
+          amount: Number(t.amount),
+          date: new Date(t.transactionDate).toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" }) + " WIB",
+          icon: unitIcon(t.unit as User["unit"]),
+          status: t.status as TxStatus,
+          description: t.description,
+          type: t.type,
+          method: t.method,
+        }))
+        setApprovals(mapped)
+      })
+    })
+  }, [])
 
-  const approvals = pending.map((t) => ({
-    id: t.id,
-    unit: t.unit,
-    title: t.category,
-    amount: Number(t.amount),
-    date: new Date(t.transactionDate).toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" }) + " WIB",
-    icon: unitIcon(t.unit),
-    status: t.status,
-    description: t.description,
-    type: t.type,
-    method: t.method,
-  }))
+  if (!session) return null
 
   return (
     <div className="bg-background text-on-background font-body min-h-screen flex flex-col pb-28">
@@ -93,7 +120,7 @@ export default async function ApprovalsPage() {
   )
 }
 
-function ApprovalCard({ item, userRole }: { item: any; userRole: string }) {
+function ApprovalCard({ item, userRole }: { item: ApprovalItem; userRole: string }) {
   const [loading, setLoading] = useState(false)
 
   const handleAction = async (action: 'approve' | 'reject') => {

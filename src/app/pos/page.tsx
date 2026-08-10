@@ -8,7 +8,7 @@ import { canUseRetail } from '@/lib/enums'
 export default function PosPage() {
   const { data: session } = useSession()
   const router = useRouter()
-  const enabled = (session?.user as any)?.retailModuleEnabled === true
+  const enabled = (session?.user as { retailModuleEnabled?: boolean })?.retailModuleEnabled === true
   const role = session?.user?.role || ''
 
   useEffect(() => {

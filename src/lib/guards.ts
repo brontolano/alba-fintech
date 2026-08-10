@@ -1,7 +1,5 @@
 import { NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
-import { authOptions } from "@/app/api/auth/[...nextauth]/route"
-import { prisma } from "@/lib/prisma"
 import { isUnit } from "@/lib/enums"
 
 export async function ensureUnitAccess(session: Awaited<ReturnType<typeof getServerSession>>, unit: string) {

@@ -9,7 +9,7 @@ import { cn } from '@/lib/utils'
 export function BottomNav() {
   const pathname = usePathname()
   const { data: session } = useSession()
-  const retailEnabled = (session?.user as any)?.retailModuleEnabled === true
+  const retailEnabled = (session?.user as { retailModuleEnabled?: boolean })?.retailModuleEnabled === true
 
   const navItems = [
     { name: 'Beranda', href: '/dashboard', icon: Home },
@@ -26,7 +26,7 @@ export function BottomNav() {
   return (
     <div className="fixed bottom-0 left-0 z-50 w-full h-16 bg-white border-t border-gray-200 dark:bg-gray-900 dark:border-gray-800">
       <div className="grid h-full max-w-lg grid-cols-5 mx-auto font-medium">
-        {navItems.map((item, idx) => {
+        {navItems.map((item) => {
           const Icon = item.icon
           const isActive = pathname.startsWith(item.href)
 

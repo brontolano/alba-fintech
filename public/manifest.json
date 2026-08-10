@@ -1,19 +1,19 @@
 {
-  "name": "ALBA-FINTECH",
+  "name": "alba-fintech",
   "short_name": "ALBA",
   "description": "Sistem Keuangan Pesantren Al Basyariyyah",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#1E3A5F",
+  "background_color": "#faf9fc",
+  "theme_color": "#022448",
   "icons": [
     {
-      "src": "/icon-192x192.png",
+      "src": "/icon-192.png",
       "sizes": "192x192",
       "type": "image/png"
     },
     {
-      "src": "/icon-512x512.png",
+      "src": "/icon-512.png",
       "sizes": "512x512",
       "type": "image/png"
     }

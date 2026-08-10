@@ -1,7 +1,7 @@
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/app/api/auth/[...nextauth]/route"
 import { redirect } from "next/navigation"
-import { Wallet, CheckCircle2, Clock, AlertTriangle, ArrowRight, Package } from "lucide-react"
+import { CheckCircle2, ArrowRight, Package, Clock } from "lucide-react"
 import Link from "next/link"
 import { prisma } from "@/lib/prisma"
 
