@@ -64,7 +64,7 @@ export default function PosPage() {
     return () => {
       ignore = true
     }
-  }, [session, role, enabled, router])
+  }, [session, role, enabled, userUnit, router])
 
   const addToCart = (item: InventoryItem) => {
     if (item.stock <= 0) {

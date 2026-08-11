@@ -69,7 +69,7 @@ export default function InventoryPage() {
     return () => {
       ignore = true
     }
-  }, [session, role, enabled, router])
+  }, [session, role, enabled, userUnit, router])
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault()
