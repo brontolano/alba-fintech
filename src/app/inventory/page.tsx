@@ -24,6 +24,7 @@ export default function InventoryPage() {
   const router = useRouter()
   const enabled = (session?.user as { retailModuleEnabled?: boolean } | undefined)?.retailModuleEnabled === true
   const role = session?.user?.role || ''
+  const userUnit = session?.user?.unit || ''
 
   const [items, setItems] = useState<InventoryItem[]>([])
   const [search, setSearch] = useState('')
@@ -53,7 +54,7 @@ export default function InventoryPage() {
       router.replace('/login')
       return
     }
-    if (!canUseRetail(role, enabled)) {
+    if (!canUseRetail(role, userUnit, enabled)) {
       router.replace('/dashboard')
       return
     }
@@ -100,7 +101,7 @@ export default function InventoryPage() {
     }
   }
 
-  if (!session || !canUseRetail(role, enabled)) return null
+  if (!session || !canUseRetail(role, userUnit, enabled)) return null
 
   const filtered = items.filter((i) => i.name.toLowerCase().includes(search.toLowerCase()) || (i.sku || '').toLowerCase().includes(search.toLowerCase()))
   const lowStock = items.filter((i) => i.stock <= i.minStock)

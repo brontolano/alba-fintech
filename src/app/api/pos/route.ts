@@ -48,7 +48,7 @@ export async function POST(req: Request) {
   const unit = session.user.unit
   const enabled = (session.user as { retailModuleEnabled?: boolean }).retailModuleEnabled === true
 
-  if (!canUseRetail(role, enabled)) {
+  if (!canUseRetail(role, unit, enabled)) {
     return NextResponse.json({ error: "Retail module disabled" }, { status: 403 })
   }
 

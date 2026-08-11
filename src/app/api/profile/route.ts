@@ -67,6 +67,7 @@ export async function PUT(req: Request) {
           unitType: true,
           retailModuleEnabled: true,
           image: true,
+          createdAt: true,
         },
       })
 
@@ -96,6 +97,7 @@ export async function PUT(req: Request) {
         unitType: true,
         retailModuleEnabled: true,
         image: true,
+        createdAt: true,
       },
     })
 

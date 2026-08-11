@@ -4,7 +4,7 @@ import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import { useEffect, useRef, useState } from "react"
 import Link from "next/link"
-import { Camera, Save, Refresh } from "lucide-react"
+import { Camera, Save, RefreshCw } from "lucide-react"
 
 type UserProfile = {
   name?: string | null
