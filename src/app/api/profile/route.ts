@@ -41,6 +41,41 @@ export async function PUT(req: Request) {
   }
 
   try {
+    const contentType = req.headers.get("content-type") || ""
+
+    if (contentType.includes("multipart/form-data")) {
+      const form = await req.formData()
+      const file = form.get("image") as File | null
+
+      if (!file || file.size === 0) {
+        return NextResponse.json({ error: "File gambar kosong" }, { status: 400 })
+      }
+
+      const bytes = Buffer.from(await file.arrayBuffer())
+      const base64 = bytes.toString("base64")
+      const dataUrl = `data:${file.type};base64,${base64}`
+
+      const updated = await prisma.user.update({
+        where: { id: Number(session.user.id) },
+        data: { image: dataUrl },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          role: true,
+          unit: true,
+          unitType: true,
+          retailModuleEnabled: true,
+          image: true,
+        },
+      })
+
+      return NextResponse.json({
+        ...updated,
+        createdAt: updated.createdAt?.toISOString?.() ?? null,
+      })
+    }
+
     const body = await req.json()
     const { name, image, unitType, retailModuleEnabled } = body
 
@@ -64,7 +99,10 @@ export async function PUT(req: Request) {
       },
     })
 
-    return NextResponse.json(updated)
+    return NextResponse.json({
+      ...updated,
+      createdAt: updated.createdAt?.toISOString?.() ?? null,
+    })
   } catch (error) {
     console.error("Update profile error:", error)
     return NextResponse.json({ error: "Failed to update profile" }, { status: 500 })

@@ -1,242 +1,201 @@
-import { getServerSession } from "next-auth"
-import { authOptions } from "@/app/api/auth/[...nextauth]/route"
-import { redirect } from "next/navigation"
-import Link from "next/link"
-import { prisma } from "@/lib/prisma"
+'use client'
+
+import { useEffect, useState } from 'react'
+import { useSession } from 'next-auth/react'
+import { useRouter } from 'next/navigation'
+import Link from 'next/link'
+import { Search } from 'lucide-react'
+
+type ReportRow = {
+  id: number
+  unit: string
+  category: string
+  amount: number
+  type: string
+  status: string
+  transactionDate: string
+  method: string
+  description: string | null
+}
 
 function formatRupiah(n: number): string {
   return `Rp ${n.toLocaleString('id-ID')}`
 }
 
-export default async function ReportsPage() {
-  const session = await getServerSession(authOptions)
-
-  if (!session) {
-    redirect('/login')
+function statusColor(status: string): string {
+  switch (status) {
+    case 'Approved':
+      return 'bg-emerald-100 text-emerald-800'
+    case 'Pending':
+      return 'bg-amber-100 text-amber-800'
+    case 'Submitted':
+      return 'bg-blue-100 text-blue-800'
+    case 'Rejected':
+      return 'bg-rose-100 text-rose-800'
+    default:
+      return 'bg-gray-100 text-gray-800'
   }
+}
 
-  const transactions = await prisma.transaction.findMany()
+export default function ReportsPage() {
+  const { data: session } = useSession()
+  const router = useRouter()
+  const [rows, setRows] = useState<ReportRow[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+  const [search, setSearch] = useState('')
 
-  let totalDebit = 0
-  let totalKredit = 0
-  const byUnit: Record<string, { debit: number; kredit: number }> = {}
-  for (const t of transactions) {
-    const amt = Number(t.amount)
-    if (t.type === "Debit") totalDebit += amt
-    else totalKredit += amt
-    if (!byUnit[t.unit]) byUnit[t.unit] = { debit: 0, kredit: 0 }
-    if (t.type === "Debit") byUnit[t.unit].debit += amt
-    else byUnit[t.unit].kredit += amt
-  }
-  const netBalance = totalDebit - totalKredit
+  const role = session?.user?.role || ''
+  const unit = session?.user?.unit || ''
 
-  const maxUnitTotal = Math.max(
-    1,
-    ...Object.values(byUnit).map((u) => u.debit + u.kredit)
+  useEffect(() => {
+    if (!session) return
+
+    let cancelled = false
+
+    async function load() {
+      try {
+        const res = await fetch('/api/transactions?report=1', { cache: 'no-store' })
+
+        if (res.status === 401) {
+          router.replace('/login')
+          return
+        }
+
+        if (!res.ok) {
+          setError('Gagal memuat laporan.')
+          return
+        }
+
+        const data = (await res.json()) as ReportRow[]
+
+        if (!cancelled) {
+          setRows(data)
+        }
+      } catch {
+        if (!cancelled) setError('Gagal memuat laporan.')
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    }
+
+    void load()
+    return () => {
+      cancelled = true
+    }
+  }, [session, router])
+
+  const filtered = search
+    ? rows.filter(
+        (r) =>
+          r.category.toLowerCase().includes(search.toLowerCase()) ||
+          r.unit.toLowerCase().includes(search.toLowerCase()) ||
+          (r.description || '').toLowerCase().includes(search.toLowerCase()),
+      )
+    : rows
+
+  const totals = rows.reduce(
+    (acc, r) => {
+      const amount = Number(r.amount) || 0
+      if (r.type === 'Debit') acc.debit += amount
+      else acc.kredit += amount
+      return acc
+    },
+    { debit: 0, kredit: 0 },
   )
 
+  const net = totals.debit - totals.kredit
+
   return (
-    <div className="bg-[#faf9fc] text-[#1a1c1e] font-body min-h-screen pb-32 md:pb-12">
-      {/* TopAppBar */}
-      <header className="bg-[#f4f3f7] sticky top-0 w-full z-40 shadow-sm">
-        <div className="flex justify-between items-center px-6 py-3 w-full max-w-[1280px] mx-auto">
+    <div className="bg-background text-on-background font-body min-h-screen pb-28">
+      <header className="w-full top-0 sticky bg-background dark:bg-on-primary-fixed z-40 transition-colors duration-200">
+        <div className="flex justify-between items-center px-6 py-3 max-w-[1280px] mx-auto">
           <div className="flex items-center gap-3">
-            <Link href="/profile" className="w-10 h-10 rounded-full bg-[#1e3a5f] text-[#8aa4cf] flex items-center justify-center font-bold hover:opacity-90 transition-opacity overflow-hidden">
-              {session.user.image ? (
+            <Link href="/profile" className="w-10 h-10 rounded-full bg-surface-variant flex items-center justify-center overflow-hidden font-bold text-primary hover:opacity-90 transition-opacity">
+              {session?.user?.image ? (
                 <img src={session.user.image} alt="Profile" className="w-full h-full object-cover" />
               ) : (
-                <span>{(session.user.name || 'AL').charAt(0).toUpperCase()}</span>
+                <span>{(session?.user?.name || 'AL').charAt(0).toUpperCase()}</span>
               )}
             </Link>
-            <h1 className="text-xl font-bold text-[#022448]">ALBA Finance</h1>
+            <h1 className="font-semibold text-xl text-primary dark:text-primary-fixed">ALBA Finance</h1>
           </div>
-          <button aria-label="Notifications" className="w-10 h-10 rounded-full flex items-center justify-center text-[#43474e] hover:bg-[#e3e2e6]/50 transition-colors relative">
+          <button aria-label="Notifications" className="text-on-surface-variant dark:text-outline-variant hover:bg-surface-container-low dark:hover:bg-primary-container p-2 rounded-full transition-colors duration-200 relative">
             <span className="material-symbols-outlined">notifications</span>
             <span className="absolute top-2 right-2 w-2 h-2 bg-[#ba1a1a] rounded-full border border-white"></span>
           </button>
         </div>
       </header>
 
-      {/* Desktop SideNav */}
-      <nav className="hidden md:flex flex-col w-[256px] fixed left-0 top-[72px] h-[calc(100vh-72px)] bg-[#faf9fc] border-r border-[#e9e7eb] py-5 px-4 gap-2 z-30">
-        <Link className="flex items-center gap-3 px-4 py-3 rounded-2xl text-[#43474e] hover:bg-[#e3e2e6]/50 transition-colors" href="/dashboard">
-          <span className="material-symbols-outlined">home</span>
-          <span className="text-base font-medium">Beranda</span>
-        </Link>
-        <Link className="flex items-center gap-3 px-4 py-3 rounded-2xl text-[#43474e] hover:bg-[#e3e2e6]/50 transition-colors" href="/transactions">
-          <span className="material-symbols-outlined">account_balance_wallet</span>
-          <span className="text-base font-medium">Transaksi</span>
-        </Link>
-        <Link className="flex items-center gap-3 px-4 py-3 rounded-2xl text-[#43474e] hover:bg-[#e3e2e6]/50 transition-colors" href="/approvals">
-          <span className="material-symbols-outlined">fact_check</span>
-          <span className="text-base font-medium">Persetujuan</span>
-        </Link>
-        <Link className="flex items-center gap-3 px-4 py-3 rounded-2xl bg-[#1e3a5f] text-white transition-colors" href="/reports">
-          <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>assessment</span>
-          <span className="text-base font-bold">Laporan</span>
-        </Link>
-        <Link className="flex items-center gap-3 px-4 py-3 rounded-2xl text-[#43474e] hover:bg-[#e3e2e6]/50 transition-colors" href="/reconciliations">
-          <span className="material-symbols-outlined">account_tree</span>
-          <span className="text-base font-medium">Rekonsiliasi</span>
-        </Link>
-      </nav>
-
-      {/* Main Content Canvas */}
-      <main className="w-full max-w-[1280px] mx-auto px-6 py-5 md:py-6 md:pl-[280px]">
-        {/* Page Header & Filter */}
+      <main className="px-6 py-6 max-w-[1280px] mx-auto w-full">
         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-end mb-6 gap-4">
           <div>
-            <h2 className="text-3xl font-bold text-[#1a1c1e] mb-1">Laporan Eksekutif</h2>
-            <p className="text-base text-[#43474e]">Ringkasan performa keuangan institusi.</p>
+            <h2 className="text-3xl font-bold text-on-surface mb-2">Laporan</h2>
+            <p className="text-base text-on-surface-variant">
+              {role === 'Pimpinan' ? 'Ringkasan keuangan lintas unit.' : role === 'Manager' ? `Ringkasan keuangan unit ${unit}.` : 'Ringkasan transaksi Anda.'}
+            </p>
           </div>
-          <div className="relative inline-block w-full sm:w-auto">
-            <select className="appearance-none w-full bg-white border border-[#c4c6cf] text-[#1a1c1e] text-base py-2 pl-4 pr-10 rounded-full focus:outline-none focus:ring-2 focus:ring-[#022448] cursor-pointer shadow-sm">
-              <option>Bulan Ini</option>
-              <option>Bulan Lalu</option>
-              <option>Kuartal Ini</option>
-              <option>Tahun Ini</option>
-            </select>
-            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-[#43474e]">
-              <span className="material-symbols-outlined">expand_more</span>
-            </div>
+          <div className="relative w-full sm:w-auto">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-on-surface-variant" />
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Cari kategori/unit..."
+              className="w-full bg-white border border-[#c4c6cf] rounded-full pl-9 pr-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#022448]"
+            />
           </div>
         </div>
 
-        {/* Bento Grid Layout */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {/* 1. Financial Summary Card */}
-          <div className="md:col-span-3 grid grid-cols-1 sm:grid-cols-3 gap-4">
-            {/* Pemasukan */}
-            <div className="bg-white rounded-2xl p-6 shadow-sm border border-[#eeedf1] flex flex-col justify-between">
-              <div className="flex justify-between items-start mb-4">
-                <div className="w-10 h-10 rounded-full bg-[#a2e7fd] text-[#1b697c] flex items-center justify-center">
-                  <span className="material-symbols-outlined">arrow_downward</span>
-                </div>
-                <span className="inline-flex items-center gap-1 bg-[#e9e7eb] text-[#16677a] px-2.5 py-1 rounded-full text-xs font-semibold">
-                  <span className="material-symbols-outlined text-[16px]">trending_up</span> +12.5%
-                </span>
+        {error ? (
+          <div className="bg-rose-50 text-rose-700 border border-rose-200 rounded-2xl p-4 text-sm mb-6">{error}</div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="md:col-span-3 grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="bg-white rounded-2xl p-4 shadow-sm border border-[#eeedf1]">
+                <p className="text-xs text-[#43474e] mb-1">Pemasukan</p>
+                <p className="text-xl font-bold text-[#1a1c1e] font-mono">{formatRupiah(totals.debit)}</p>
               </div>
-              <div>
-                <p className="text-sm text-[#43474e] mb-1">Total Pemasukan</p>
-                <h3 className="text-2xl font-bold text-[#1a1c1e] font-mono">{formatRupiah(totalDebit)}</h3>
+              <div className="bg-white rounded-2xl p-4 shadow-sm border border-[#eeedf1]">
+                <p className="text-xs text-[#43474e] mb-1">Pengeluaran</p>
+                <p className="text-xl font-bold text-[#1a1c1e] font-mono">{formatRupiah(totals.kredit)}</p>
               </div>
-            </div>
-
-            {/* Pengeluaran */}
-            <div className="bg-white rounded-2xl p-6 shadow-sm border border-[#eeedf1] flex flex-col justify-between">
-              <div className="flex justify-between items-start mb-4">
-                <div className="w-10 h-10 rounded-full bg-[#ffdad6] text-[#93000a] flex items-center justify-center">
-                  <span className="material-symbols-outlined">arrow_upward</span>
-                </div>
-                <span className="inline-flex items-center gap-1 bg-[#e9e7eb] text-[#ba1a1a] px-2.5 py-1 rounded-full text-xs font-semibold">
-                  <span className="material-symbols-outlined text-[16px]">trending_up</span> +5.2%
-                </span>
-              </div>
-              <div>
-                <p className="text-sm text-[#43474e] mb-1">Total Pengeluaran</p>
-                <h3 className="text-2xl font-bold text-[#1a1c1e] font-mono">{formatRupiah(totalKredit)}</h3>
+              <div className="bg-white rounded-2xl p-4 shadow-sm border border-[#eeedf1]">
+                <p className="text-xs text-[#43474e] mb-1">Saldo</p>
+                <p className="text-xl font-bold text-[#1a1c1e] font-mono">{formatRupiah(net)}</p>
               </div>
             </div>
 
-            {/* Laba Bersih */}
-            <div className="bg-[#022448] rounded-2xl p-6 shadow-sm text-white flex flex-col justify-between relative overflow-hidden">
-              <div className="absolute -right-6 -top-6 w-32 h-32 bg-[#1e3a5f] rounded-full opacity-50"></div>
-              <div className="flex justify-between items-start mb-4 relative z-10">
-                <div className="w-10 h-10 rounded-full bg-[#1e3a5f] text-[#adc8f5] flex items-center justify-center">
-                  <span className="material-symbols-outlined">account_balance</span>
-                </div>
+            <div className="md:col-span-3 bg-white rounded-2xl shadow-sm border border-[#eeedf1]">
+              <div className="px-4 py-3 border-b border-[#eeedf1]">
+                <h3 className="text-base font-bold text-[#1a1c1e]">Transaksi Terkini</h3>
               </div>
-              <div className="relative z-10">
-                <p className="text-sm text-[#adc8f5] mb-1">Laba Bersih</p>
-                <h3 className="text-2xl font-bold text-white font-mono">{formatRupiah(netBalance)}</h3>
-              </div>
-            </div>
-          </div>
-
-          {/* 2. Unit Performance Comparison */}
-          <div className="md:col-span-2 bg-white rounded-2xl p-6 shadow-sm border border-[#eeedf1]">
-            <div className="flex justify-between items-center mb-6">
-              <h3 className="text-xl font-bold text-[#1a1c1e]">Perbandingan Performa Unit</h3>
-              <button className="text-[#022448] hover:text-[#adc8f5] transition-colors">
-                <span className="material-symbols-outlined">more_horiz</span>
-              </button>
-            </div>
-            <div className="space-y-4">
-              {Object.entries(byUnit).length === 0 ? (
-                <p className="text-sm text-[#43474e]">Belum ada data unit</p>
+              {loading ? (
+                <div className="p-6 text-sm text-[#43474e]">Memuat data...</div>
+              ) : filtered.length === 0 ? (
+                <div className="p-6 text-sm text-[#43474e]">Belum ada transaksi.</div>
               ) : (
-                Object.entries(byUnit).map(([unit, vals]) => {
-                  const debitPct = Math.round((vals.debit / maxUnitTotal) * 100)
-                  const kreditPct = Math.round((vals.kredit / maxUnitTotal) * 100)
-                  return (
-                    <div key={unit}>
-                      <div className="flex justify-between mb-1">
-                        <span className="text-sm font-medium text-[#1a1c1e]">Unit {unit}</span>
-                        <span className="text-sm text-[#43474e] font-mono">{formatRupiah(vals.debit)} / {formatRupiah(vals.kredit)}</span>
+                <div className="divide-y divide-[#eeedf1]">
+                  {filtered.map((item) => (
+                    <div key={item.id} className="px-4 py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-semibold text-[#1a1c1e]">{item.category}</span>
+                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${statusColor(item.status)}`}>{item.status}</span>
+                        </div>
+                        <p className="text-xs text-[#43474e]">{item.unit} • {item.method}</p>
                       </div>
-                      <div className="h-3 w-full bg-[#e9e7eb] rounded-full overflow-hidden flex">
-                        <div className="h-full bg-[#16677a]" style={{ width: `${debitPct}%` }}></div>
-                        <div className="h-full bg-[#ba1a1a] opacity-70" style={{ width: `${kreditPct}%` }}></div>
+                      <div className="text-right">
+                        <p className="text-sm font-bold text-[#1a1c1e] font-mono">{formatRupiah(item.amount)}</p>
+                        <p className="text-[11px] text-[#43474e]">{new Date(item.transactionDate).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' })}</p>
                       </div>
                     </div>
-                  )
-                })
+                  ))}
+                </div>
               )}
             </div>
-            <div className="flex justify-center gap-6 mt-6">
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full bg-[#16677a]"></div>
-                <span className="text-xs font-medium text-[#43474e]">Pemasukan</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full bg-[#ba1a1a] opacity-70"></div>
-                <span className="text-xs font-medium text-[#43474e]">Pengeluaran</span>
-              </div>
-            </div>
           </div>
-
-          {/* 3. Top Expenditure Categories */}
-          <div className="bg-white rounded-2xl p-6 shadow-sm border border-[#eeedf1] flex flex-col justify-between">
-            <h3 className="text-xl font-bold text-[#1a1c1e] mb-6">Kategori Pengeluaran Terbesar</h3>
-            <div className="relative w-32 h-32 mx-auto mb-6 flex-shrink-0">
-              <svg className="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
-                <circle cx="18" cy="18" fill="transparent" r="15.91549430918954" stroke="#e9e7eb" strokeWidth="4"></circle>
-                <circle cx="18" cy="18" fill="transparent" r="15.91549430918954" stroke="#022448" strokeDasharray="45 55" strokeDashoffset="0" strokeWidth="4"></circle>
-                <circle cx="18" cy="18" fill="transparent" r="15.91549430918954" stroke="#16677a" strokeDasharray="35 65" strokeDashoffset="-45" strokeWidth="4"></circle>
-                <circle cx="18" cy="18" fill="transparent" r="15.91549430918954" stroke="#8cd1e6" strokeDasharray="20 80" strokeDashoffset="-80" strokeWidth="4"></circle>
-              </svg>
-              <div className="absolute inset-0 flex items-center justify-center flex-col">
-                <span className="font-mono font-bold text-sm text-[#1a1c1e]">Total</span>
-              </div>
-            </div>
-            <div className="space-y-3">
-              <div className="flex justify-between items-center">
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full bg-[#022448]"></div>
-                  <span className="text-sm text-[#1a1c1e]">Gaji &amp; Honor</span>
-                </div>
-                <span className="text-sm font-bold font-mono">45%</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full bg-[#16677a]"></div>
-                  <span className="text-sm text-[#1a1c1e]">Logistik Dapur</span>
-                </div>
-                <span className="text-sm font-bold font-mono">35%</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full bg-[#8cd1e6]"></div>
-                  <span className="text-sm text-[#1a1c1e]">Sarana &amp; Prasarana</span>
-                </div>
-                <span className="text-sm font-bold font-mono">20%</span>
-              </div>
-            </div>
-          </div>
-        </div>
+        )}
       </main>
-
-
     </div>
   )
 }

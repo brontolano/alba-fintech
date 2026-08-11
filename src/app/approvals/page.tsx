@@ -1,16 +1,14 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { getServerSession } from "next-auth"
-import { authOptions } from "@/app/api/auth/[...nextauth]/route"
-import { redirect } from "next/navigation"
-import Link from "next/link"
-import { prisma } from "@/lib/prisma"
-import type { User, TxStatus } from "@/lib/enums"
+import { useEffect, useState } from 'react'
+import { useSession } from 'next-auth/react'
+import { useRouter } from 'next/navigation'
+import type { TxStatus } from '@/lib/enums'
+import Link from 'next/link'
 
 type ApprovalItem = {
   id: number
-  unit: User["unit"]
+  unit: string
   title: string
   amount: number
   date: string
@@ -25,55 +23,90 @@ function formatRupiah(n: number): string {
   return `Rp ${n.toLocaleString('id-ID')}`
 }
 
-function unitIcon(unit: User["unit"]): string {
+function unitIcon(unit: string): string {
   switch (unit) {
-    case "Kantor":
-      return "business"
-    case "Kantin":
-      return "restaurant"
-    case "Koperasi":
-      return "local_mall"
+    case 'Kantor':
+      return 'business'
+    case 'Kantin':
+      return 'restaurant'
+    case 'Koperasi':
+      return 'local_mall'
     default:
-      return "receipt_long"
+      return 'receipt_long'
   }
 }
 
 export default function ApprovalsPage() {
-  const [session, setSession] = useState<Awaited<ReturnType<typeof getServerSession>> | null>(null)
+  const router = useRouter()
+  const { data: session } = useSession()
   const [approvals, setApprovals] = useState<ApprovalItem[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+
+  const role = session?.user?.role || ''
+  const unit = session?.user?.unit || ''
+  const enabled = (session?.user as { retailModuleEnabled?: boolean } | undefined)?.retailModuleEnabled === true
 
   useEffect(() => {
-    getServerSession(authOptions).then((s) => {
-      if (!s) {
-        redirect('/login')
+    if (!session) {
+      router.replace('/login')
+      return
+    }
+
+    let cancelled = false
+
+    async function loadApprovals() {
+      const response = await fetch('/api/approvals', { cache: 'no-store' })
+
+      if (response.status === 401) {
+        router.replace('/login')
         return
       }
-      setSession(s)
 
-      const whereClause = s.user.role === "Manager"
-        ? { OR: [{ status: "Submitted" as TxStatus }, { status: "Pending" as TxStatus }] }
-        : { status: "Pending" as TxStatus }
+      if (!response.ok) {
+        if (!cancelled) setError('Gagal memuat data persetujuan.')
+        return
+      }
 
-      prisma.transaction.findMany({
-        where: whereClause,
-        orderBy: { transactionDate: "desc" },
-      }).then((pending) => {
-        const mapped: ApprovalItem[] = pending.map((t) => ({
-          id: t.id,
-          unit: t.unit as User["unit"],
-          title: t.category,
-          amount: Number(t.amount),
-          date: new Date(t.transactionDate).toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" }) + " WIB",
-          icon: unitIcon(t.unit as User["unit"]),
-          status: t.status as TxStatus,
-          description: t.description,
-          type: t.type,
-          method: t.method,
-        }))
-        setApprovals(mapped)
-      })
-    })
-  }, [])
+      const rows = (await response.json()) as Array<{
+        id: number
+        unit: string
+        category: string
+        amount: number
+        transactionDate: string
+        status: TxStatus
+        description: string | null
+        type: string
+        method: string
+      }>
+
+      if (!cancelled) {
+        setApprovals(
+          rows.map((item) => ({
+            id: item.id,
+            unit: item.unit,
+            title: item.category,
+            amount: Number(item.amount),
+            date: new Date(item.transactionDate).toLocaleString('id-ID', {
+              dateStyle: 'medium',
+              timeStyle: 'short',
+            }) + ' WIB',
+            icon: unitIcon(item.unit),
+            status: item.status,
+            description: item.description,
+            type: item.type,
+            method: item.method,
+          })),
+        )
+        setLoading(false)
+      }
+    }
+
+    void loadApprovals()
+    return () => {
+      cancelled = true
+    }
+  }, [session, router])
 
   if (!session) return null
 
@@ -105,22 +138,33 @@ export default function ApprovalsPage() {
           <h2 className="text-3xl font-bold text-on-surface mb-2">Persetujuan</h2>
           <div className="inline-flex items-center gap-2 bg-[#a2e7fd]/30 px-3 py-2 rounded-lg">
             <span className="material-symbols-outlined text-[#16677a]" style={{ fontVariationSettings: "'FILL' 1" }}>info</span>
-            <p className="text-sm font-medium text-on-surface-variant">Ada {approvals.length} transaksi menunggu persetujuan Anda</p>
+            <p className="text-sm font-medium text-on-surface-variant">
+              {loading
+                ? 'Memuat data persetujuan...'
+                : `Ada ${approvals.length} transaksi menunggu persetujuan Anda`}
+            </p>
           </div>
         </div>
 
-        {/* Approval Cards Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {approvals.map((item) => (
-            <ApprovalCard key={item.id} item={item} userRole={session.user.role} />
-          ))}
-        </div>
+        {error ? (
+          <div className="bg-rose-50 text-rose-700 border border-rose-200 rounded-2xl p-4 text-sm">{error}</div>
+        ) : approvals.length === 0 && !loading ? (
+          <div className="bg-white rounded-2xl border border-dashed border-[#c4c6cf] p-10 text-center text-sm text-[#43474e]">
+            Tidak ada transaksi yang perlu disetujui saat ini.
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {approvals.map((item) => (
+              <ApprovalCard key={item.id} item={item} />
+            ))}
+          </div>
+        )}
       </main>
     </div>
   )
 }
 
-function ApprovalCard({ item, userRole }: { item: ApprovalItem; userRole: string }) {
+function ApprovalCard({ item }: { item: ApprovalItem }) {
   const [loading, setLoading] = useState(false)
 
   const handleAction = async (action: 'approve' | 'reject') => {
@@ -131,13 +175,15 @@ function ApprovalCard({ item, userRole }: { item: ApprovalItem; userRole: string
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ transactionId: item.id, action }),
       })
+
       if (res.ok) {
         window.location.reload()
       } else {
-        alert('Gagal memproses persetujuan')
+        const err = await res.json().catch(() => ({ error: 'Gagal memproses persetujuan' }))
+        alert(err.error || 'Gagal memproses persetujuan')
       }
     } catch (e) {
-      alert('Error: ' + e)
+      alert('Error: ' + ((e as Error).message || e))
     } finally {
       setLoading(false)
     }

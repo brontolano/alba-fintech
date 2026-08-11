@@ -34,7 +34,10 @@ export function isTxStatus(v: string): v is TxStatus {
   return (TX_STATUSES as readonly string[]).includes(v)
 }
 
-// Retail module RBAC: only Staff/Manager in a Retail unit with the toggle on
-export function canUseRetail(role: string, retailModuleEnabled: boolean): boolean {
-  return retailModuleEnabled && role !== "Pimpinan"
+export function isRetailUnit(unit: string): boolean {
+  return unit === "Kantin" || unit === "Koperasi"
+}
+
+export function canUseRetail(role: string, unit: string, retailModuleEnabled: boolean): boolean {
+  return (role === "Manager" || role === "Staff") && isRetailUnit(unit) && retailModuleEnabled
 }

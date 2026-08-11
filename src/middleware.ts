@@ -6,9 +6,14 @@ import { isRole, isUnit, canUseRetail } from '@/lib/enums'
 export async function middleware(request: NextRequest) {
   const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET })
 
-  // Public paths
-  const publicPaths = ['/login', '/', '/manifest.json', '/_next']
-  if (publicPaths.some((p) => request.nextUrl.pathname.startsWith(p))) {
+  const pathname = request.nextUrl.pathname
+  const isPublic =
+    pathname === '/' ||
+    pathname === '/login' ||
+    pathname === '/manifest.json' ||
+    pathname.startsWith('/_next')
+
+  if (isPublic) {
     return NextResponse.next()
   }
 
@@ -27,7 +32,19 @@ export async function middleware(request: NextRequest) {
   }
 
   // Retail module guard
-  if (request.nextUrl.pathname.startsWith('/pos') && !canUseRetail(role, retailEnabled)) {
+  const retailPath = pathname.startsWith('/pos') || pathname.startsWith('/inventory')
+  if (retailPath && !canUseRetail(role, unit, retailEnabled)) {
+    return NextResponse.redirect(new URL('/dashboard', request.url))
+  }
+
+  if (
+    role === 'Staff' &&
+    (pathname.startsWith('/approvals') || pathname.startsWith('/reports') || pathname.startsWith('/reconciliations'))
+  ) {
+    return NextResponse.redirect(new URL('/dashboard/staff', request.url))
+  }
+
+  if (role !== 'Pimpinan' && pathname.startsWith('/reconciliations')) {
     return NextResponse.redirect(new URL('/dashboard', request.url))
   }
 

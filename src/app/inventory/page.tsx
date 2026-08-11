@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { canUseRetail } from '@/lib/enums'
-import { Search, Plus, Package, AlertTriangle } from 'lucide-react'
+import { Search, Plus, AlertTriangle } from 'lucide-react'
 
 type InventoryItem = {
   id: number
@@ -43,20 +43,32 @@ export default function InventoryPage() {
     unitName: typeof window !== 'undefined' ? (session?.user?.unit || 'Kantin') : 'Kantin',
   })
 
-  useEffect(() => {
-    if (!session) {
-      router.replace('/login')
-    } else if (!canUseRetail(role, enabled)) {
-      router.replace('/dashboard')
-    } else {
-      fetchItems()
-    }
-  }, [session, role, enabled, router])
-
   const fetchItems = async () => {
     const res = await fetch('/api/inventory')
     if (res.ok) setItems(await res.json())
   }
+
+  useEffect(() => {
+    if (!session) {
+      router.replace('/login')
+      return
+    }
+    if (!canUseRetail(role, enabled)) {
+      router.replace('/dashboard')
+      return
+    }
+
+    let ignore = false
+    const load = async () => {
+      const res = await fetch('/api/inventory')
+      if (res.ok && !ignore) setItems(await res.json())
+    }
+
+    void load()
+    return () => {
+      ignore = true
+    }
+  }, [session, role, enabled, router])
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault()

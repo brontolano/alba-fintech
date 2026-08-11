@@ -7,6 +7,7 @@ declare module "next-auth" {
       role: string
       unit: string
       unitType?: string
+      retailModuleEnabled?: boolean
       image?: string | null
     } & DefaultSession["user"]
   }

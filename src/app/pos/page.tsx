@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { canUseRetail } from '@/lib/enums'
-import { Search, Plus, Minus, Trash2, CheckCircle2, AlertTriangle } from 'lucide-react'
+import { Search, Plus, Minus, Trash2, CheckCircle2, AlertTriangle, Package } from 'lucide-react'
 
 type InventoryItem = {
   id: number
@@ -32,16 +32,6 @@ export default function PosPage() {
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
-  useEffect(() => {
-    if (!session) {
-      router.replace('/login')
-    } else if (!canUseRetail(role, enabled)) {
-      router.replace('/dashboard')
-    } else {
-      fetchItems()
-    }
-  }, [session, role, enabled, router])
-
   const fetchItems = async () => {
     const res = await fetch('/api/inventory')
     if (res.ok) {
@@ -49,6 +39,31 @@ export default function PosPage() {
       setItems(data)
     }
   }
+
+  useEffect(() => {
+    if (!session) {
+      router.replace('/login')
+      return
+    }
+    if (!canUseRetail(role, enabled)) {
+      router.replace('/dashboard')
+      return
+    }
+
+    let ignore = false
+    const load = async () => {
+      const res = await fetch('/api/inventory')
+      if (res.ok && !ignore) {
+        const data = await res.json()
+        setItems(data)
+      }
+    }
+
+    void load()
+    return () => {
+      ignore = true
+    }
+  }, [session, role, enabled, router])
 
   const addToCart = (item: InventoryItem) => {
     if (item.stock <= 0) {

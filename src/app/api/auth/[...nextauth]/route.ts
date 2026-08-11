@@ -38,12 +38,13 @@ export const authOptions: NextAuthOptions = {
           unit: user.unit,
           unitType: user.unitType,
           image: user.image,
+          retailModuleEnabled: user.retailModuleEnabled,
         }
       }
     })
   ],
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger }) {
       if (user) {
         token.id = user.id
         token.role = user.role
@@ -52,6 +53,26 @@ export const authOptions: NextAuthOptions = {
         token.image = user.image
         token.retailModuleEnabled = (user as { retailModuleEnabled?: boolean }).retailModuleEnabled
       }
+
+      if (trigger === "update" && token.id) {
+        const current = await prisma.user.findUnique({
+          where: { id: Number(token.id) },
+          select: {
+            name: true,
+            image: true,
+            unitType: true,
+            retailModuleEnabled: true,
+          },
+        })
+
+        if (current) {
+          token.name = current.name
+          token.image = current.image
+          token.unitType = current.unitType
+          token.retailModuleEnabled = current.retailModuleEnabled
+        }
+      }
+
       return token
     },
     async session({ session, token }) {

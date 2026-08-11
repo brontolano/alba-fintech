@@ -9,30 +9,58 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
-  // Manager sees both Submitted (from staff) and Pending (await pimpinan)
-  const whereClause = session.user.role === "Manager"
-    ? { OR: [{ status: "Submitted" }, { status: "Pending" }] }
-    : { status: "Pending" }
+  const role = session.user.role
 
-  const pending = await prisma.transaction.findMany({
-    where: whereClause,
-    orderBy: { transactionDate: "desc" },
-    include: {
-      user: { select: { id: true, name: true, role: true, unit: true, image: true } },
-    },
-  })
+  if (role === "Manager") {
+    const where =
+      session.user.unit === "All"
+        ? { status: "Submitted" }
+        : { status: "Submitted", unit: session.user.unit }
 
-  return NextResponse.json(pending.map((t) => ({
-    ...t,
-    amount: Number(t.amount),
-    transactionDate: t.transactionDate.toISOString(),
-    approvedAt: t.approvedAt?.toISOString() ?? null,
-    createdAt: t.createdAt.toISOString(),
-    updatedAt: t.updatedAt.toISOString(),
-  })))
+    const pending = await prisma.transaction.findMany({
+      where,
+      orderBy: { transactionDate: "desc" },
+      include: {
+        user: { select: { id: true, name: true, role: true, unit: true, image: true } },
+      },
+    })
+
+    return NextResponse.json(
+      pending.map((t) => ({
+        ...t,
+        amount: Number(t.amount),
+        transactionDate: t.transactionDate.toISOString(),
+        approvedAt: t.approvedAt?.toISOString() ?? null,
+        createdAt: t.createdAt.toISOString(),
+        updatedAt: t.updatedAt.toISOString(),
+      })),
+    )
+  }
+
+  if (role === "Pimpinan") {
+    const pending = await prisma.transaction.findMany({
+      where: { status: "Pending" },
+      orderBy: { transactionDate: "desc" },
+      include: {
+        user: { select: { id: true, name: true, role: true, unit: true, image: true } },
+      },
+    })
+
+    return NextResponse.json(
+      pending.map((t) => ({
+        ...t,
+        amount: Number(t.amount),
+        transactionDate: t.transactionDate.toISOString(),
+        approvedAt: t.approvedAt?.toISOString() ?? null,
+        createdAt: t.createdAt.toISOString(),
+        updatedAt: t.updatedAt.toISOString(),
+      })),
+    )
+  }
+
+  return NextResponse.json({ error: "Forbidden" }, { status: 403 })
 }
 
-// Approve or reject a transaction (Manager or Pimpinan)
 export async function PATCH(req: Request) {
   const session = await getServerSession(authOptions)
   if (!session) {
@@ -40,41 +68,85 @@ export async function PATCH(req: Request) {
   }
 
   try {
-    const { transactionId, action } = await req.json() // action: "approve" | "reject"
-    const tx = await prisma.transaction.findUnique({ where: { id: Number(transactionId) } })
-    if (!tx) return NextResponse.json({ error: "Transaction not found" }, { status: 404 })
+    const body = await req.json()
+    const transactionId = Number(body.transactionId)
+    const action = String(body.action || "").toLowerCase()
 
-    if (action === "reject") {
-      await prisma.transaction.update({
-        where: { id: Number(transactionId) },
-        data: { status: "Rejected" },
-      })
-      return NextResponse.json({ success: true, status: "Rejected" })
+    if (!Number.isInteger(transactionId) || transactionId <= 0) {
+      return NextResponse.json({ error: "Invalid transaction id" }, { status: 400 })
     }
 
-    // Approve flow based on role
-    if (session.user.role === "Manager") {
-      // Manager approval moves to Pending for Pimpinan
-      await prisma.transaction.update({
-        where: { id: Number(transactionId) },
-        data: {
-          status: "Pending",
-          approvedById: Number(session.user.id),
-          approvedAt: new Date(),
-        },
+    if (action !== "approve" && action !== "reject") {
+      return NextResponse.json({ error: "Invalid action" }, { status: 400 })
+    }
+
+    const role = session.user.role
+    const tx = await prisma.transaction.findUnique({
+      where: { id: transactionId },
+      select: {
+        id: true,
+        unit: true,
+        status: true,
+        type: true,
+        amount: true,
+        category: true,
+        description: true,
+        method: true,
+        userId: true,
+        approvedById: true,
+      },
+    })
+
+    if (!tx) {
+      return NextResponse.json({ error: "Transaction not found" }, { status: 404 })
+    }
+
+    if (role === "Manager") {
+      if (tx.status !== "Submitted") {
+        return NextResponse.json({ error: "Transaction is not in Submitted state" }, { status: 409 })
+      }
+
+      if (tx.unit !== session.user.unit && session.user.unit !== "All") {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+      }
+
+      if (action === "reject") {
+        const updated = await prisma.transaction.update({
+          where: { id: transactionId, status: "Submitted" },
+          data: { status: "Rejected", approvedById: Number(session.user.id), approvedAt: new Date() },
+        })
+
+        return NextResponse.json({
+          success: true,
+          status: updated.status,
+        })
+      }
+
+      const updated = await prisma.transaction.update({
+        where: { id: transactionId, status: "Submitted" },
+        data: { status: "Pending", approvedById: Number(session.user.id), approvedAt: new Date() },
       })
-      return NextResponse.json({ success: true, status: "Pending" })
-    } else if (session.user.role === "Pimpinan") {
-      // Pimpinan final approval
-      await prisma.transaction.update({
-        where: { id: Number(transactionId) },
-        data: {
-          status: "Approved",
-          approvedById: Number(session.user.id),
-          approvedAt: new Date(),
-        },
+
+      return NextResponse.json({
+        success: true,
+        status: updated.status,
       })
-      return NextResponse.json({ success: true, status: "Approved" })
+    }
+
+    if (role === "Pimpinan") {
+      if (tx.status !== "Pending") {
+        return NextResponse.json({ error: "Transaction is not in Pending state" }, { status: 409 })
+      }
+
+      const updated = await prisma.transaction.update({
+        where: { id: transactionId, status: "Pending" },
+        data: { status: "Approved", approvedById: Number(session.user.id), approvedAt: new Date() },
+      })
+
+      return NextResponse.json({
+        success: true,
+        status: updated.status,
+      })
     }
 
     return NextResponse.json({ error: "Invalid role for approval" }, { status: 403 })
