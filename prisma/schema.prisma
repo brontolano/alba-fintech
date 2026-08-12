@@ -98,6 +98,7 @@ model InventoryItem {
   name        String
   sku         String?   @unique
   category    String?
+  imageUrl    String?
   buyPrice    Decimal?
   sellPrice   Decimal
   unit        String    // pcs, dus, kg, botol

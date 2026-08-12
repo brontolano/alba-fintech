@@ -1,16 +1,17 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { canUseRetail } from '@/lib/enums'
-import { Search, Plus, AlertTriangle } from 'lucide-react'
+import { Search, Plus, AlertTriangle, Camera } from 'lucide-react'
 
 type InventoryItem = {
   id: number
   name: string
   sku: string | null
   category: string | null
+  imageUrl: string | null
   buyPrice: number | null
   sellPrice: number
   unit: string
@@ -36,6 +37,7 @@ export default function InventoryPage() {
     name: '',
     sku: '',
     category: '',
+    imageUrl: '',
     buyPrice: '',
     sellPrice: '',
     unit: 'pcs',
@@ -43,6 +45,9 @@ export default function InventoryPage() {
     minStock: '0',
     unitName: typeof window !== 'undefined' ? (session?.user?.unit || 'Kantin') : 'Kantin',
   })
+
+  const fileRef = useRef<HTMLInputElement>(null)
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
 
   const fetchItems = async () => {
     const res = await fetch('/api/inventory')
@@ -71,6 +76,22 @@ export default function InventoryPage() {
     }
   }, [session, role, enabled, userUnit, router])
 
+  const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    if (file.size > 2 * 1024 * 1024) {
+      setMessage({ type: 'error', text: 'Ukuran gambar max 2MB' })
+      return
+    }
+    const reader = new FileReader()
+    reader.onload = () => {
+      const dataUrl = String(reader.result || '')
+      setPreviewUrl(dataUrl)
+      setForm((f) => ({ ...f, imageUrl: dataUrl }))
+    }
+    reader.readAsDataURL(file)
+  }
+
   const submit = async (e: React.FormEvent) => {
     e.preventDefault()
     setSaving(true)
@@ -81,6 +102,7 @@ export default function InventoryPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...form,
+          imageUrl: form.imageUrl || null,
           buyPrice: form.buyPrice || null,
           sellPrice: Number(form.sellPrice),
           stock: Number(form.stock),
@@ -89,7 +111,9 @@ export default function InventoryPage() {
       })
       if (res.ok) {
         setMessage({ type: 'success', text: 'Produk berhasil disimpan' })
-        setForm({ name: '', sku: '', category: '', buyPrice: '', sellPrice: '', unit: 'pcs', stock: '0', minStock: '0', unitName: session?.user?.unit || 'Kantin' })
+        setForm({ name: '', sku: '', category: '', imageUrl: '', buyPrice: '', sellPrice: '', unit: 'pcs', stock: '0', minStock: '0', unitName: session?.user?.unit || 'Kantin' })
+        setPreviewUrl(null)
+        if (fileRef.current) fileRef.current.value = ''
         setShowForm(false)
         fetchItems()
       } else {
@@ -113,19 +137,19 @@ export default function InventoryPage() {
           <h1 className="text-2xl font-bold text-[#022448]">Inventori</h1>
           <button onClick={() => setShowForm((v) => !v)} className="flex items-center gap-2 bg-[#022448] text-white px-4 py-2 rounded-full text-sm font-semibold">
             <Plus className="w-4 h-4" /> Tambah
-          </button>
-        </div>
+         </button>
+       </div>
 
         {lowStock.length > 0 && (
           <div className="mb-4 p-3 rounded-xl bg-amber-50 border border-amber-200 text-sm text-amber-800 flex items-center gap-2">
             <AlertTriangle className="w-4 h-4" /> {lowStock.length} produk stok kritis
-          </div>
+         </div>
         )}
 
         {message && (
           <div className={`mb-4 p-3 rounded-xl text-sm font-medium ${message.type === 'success' ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}`}>
             {message.text}
-          </div>
+         </div>
         )}
 
         {showForm && (
@@ -133,42 +157,70 @@ export default function InventoryPage() {
             <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Nama produk" required className="w-full bg-[#f4f3f7] rounded-2xl px-4 py-3" />
             <input value={form.sku} onChange={(e) => setForm({ ...form, sku: e.target.value })} placeholder="SKU (opsional)" className="w-full bg-[#f4f3f7] rounded-2xl px-4 py-3" />
             <input value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} placeholder="Kategori" className="w-full bg-[#f4f3f7] rounded-2xl px-4 py-3" />
+
+            <div className="flex items-center gap-3">
+              <input
+                ref={fileRef}
+                type="file"
+                accept="image/*"
+                onChange={handleFile}
+                className="hidden"
+              />
+              <button
+                type="button"
+                onClick={() => fileRef.current?.click()}
+                className="flex items-center gap-2 bg-[#f4f3f7] px-4 py-3 rounded-2xl text-sm font-semibold text-[#022448]"
+              >
+                <Camera className="w-4 h-4" /> {previewUrl ? 'Ganti Gambar' : 'Upload Gambar'}
+             </button>
+              {previewUrl && (
+                <img src={previewUrl} alt="preview" className="w-14 h-14 rounded-xl object-cover border border-[#eeedf1]" />
+              )}
+           </div>
+
             <div className="grid grid-cols-2 gap-3">
               <input value={form.buyPrice} onChange={(e) => setForm({ ...form, buyPrice: e.target.value })} placeholder="Harga beli" type="number" className="bg-[#f4f3f7] rounded-2xl px-4 py-3" />
               <input value={form.sellPrice} onChange={(e) => setForm({ ...form, sellPrice: e.target.value })} placeholder="Harga jual" type="number" required className="bg-[#f4f3f7] rounded-2xl px-4 py-3" />
-            </div>
+           </div>
             <div className="grid grid-cols-3 gap-3">
               <input value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value })} placeholder="Satuan" className="bg-[#f4f3f7] rounded-2xl px-4 py-3" />
               <input value={form.stock} onChange={(e) => setForm({ ...form, stock: e.target.value })} placeholder="Stok" type="number" className="bg-[#f4f3f7] rounded-2xl px-4 py-3" />
               <input value={form.minStock} onChange={(e) => setForm({ ...form, minStock: e.target.value })} placeholder="Min stok" type="number" className="bg-[#f4f3f7] rounded-2xl px-4 py-3" />
-            </div>
+           </div>
             <button type="submit" disabled={saving} className="w-full bg-[#022448] text-white py-3 rounded-2xl font-semibold disabled:opacity-50">
               {saving ? 'Menyimpan...' : 'Simpan Produk'}
-            </button>
-          </form>
+           </button>
+         </form>
         )}
 
         <div className="relative mb-4">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[#43474e] w-5 h-5" />
           <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Cari produk..." className="w-full bg-white border border-[#e3e2e6] rounded-2xl pl-10 pr-4 py-3" />
-        </div>
+       </div>
 
         <div className="space-y-3">
           {filtered.map((item) => (
-            <div key={item.id} className="bg-white rounded-2xl p-4 shadow-sm border border-[#eeedf1] flex items-center justify-between">
-              <div>
-                <p className="text-sm font-bold text-[#1a1c1e]">{item.name}</p>
-                <p className="text-xs text-[#43474e]">{item.category || '-'} • {item.sku || 'No SKU'}</p>
+            <div key={item.id} className="bg-white rounded-2xl p-4 shadow-sm border border-[#eeedf1] flex items-center justify-between gap-3">
+              {item.imageUrl ? (
+                <img src={item.imageUrl} alt={item.name} className="w-14 h-14 rounded-xl object-cover flex-shrink-0" />
+              ) : (
+                <div className="w-14 h-14 rounded-xl bg-[#f4f3f7] flex items-center justify-center flex-shrink-0 text-[#022448] text-xs font-bold">
+                  {item.name.slice(0, 2).toUpperCase()}
+               </div>
+              )}
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-bold text-[#1a1c1e] truncate">{item.name}</p>
+                <p className="text-xs text-[#43474e] truncate">{item.category || '-'} • {item.sku || 'No SKU'}</p>
                 <p className="text-xs text-[#43474e]">Stok: {item.stock} {item.unit} • Min: {item.minStock}</p>
-              </div>
-              <div className="text-right">
+            </div>
+              <div className="text-right flex-shrink-0">
                 <p className="text-sm font-mono font-bold text-[#022448]">Rp {item.sellPrice.toLocaleString('id-ID')}</p>
                 {item.stock <= item.minStock && <span className="text-[10px] font-bold text-rose-600 bg-rose-100 px-2 py-0.5 rounded-full flex items-center gap-1"><AlertTriangle className="w-3 h-3" />Low</span>}
-              </div>
-            </div>
+             </div>
+           </div>
           ))}
-        </div>
-      </main>
-    </div>
+       </div>
+     </main>
+   </div>
   )
 }

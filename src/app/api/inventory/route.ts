@@ -8,6 +8,7 @@ type InventoryBody = {
   name: string
   sku?: string | null
   category?: string | null
+  imageUrl?: string | null
   buyPrice?: number | null
   sellPrice: number
   unit?: string
@@ -32,7 +33,7 @@ export async function GET() {
   const items = await prisma.inventoryItem.findMany({
     where,
     orderBy: { name: "asc" },
-    select: { id: true, name: true, sku: true, category: true, buyPrice: true, sellPrice: true, unit: true, stock: true, minStock: true, unitName: true },
+    select: { id: true, name: true, sku: true, category: true, imageUrl: true, buyPrice: true, sellPrice: true, unit: true, stock: true, minStock: true, unitName: true },
   })
 
   return NextResponse.json(items.map((i) => ({
@@ -55,7 +56,7 @@ export async function POST(req: Request) {
   }
 
   const body = (await req.json()) as InventoryBody
-  const { name, sku, category, buyPrice, sellPrice, unit: itemUnit, stock, minStock, unitName } = body
+  const { name, sku, category, imageUrl, buyPrice, sellPrice, unit: itemUnit, stock, minStock, unitName } = body
 
   if (!name || sellPrice == null || !unitName) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
@@ -69,6 +70,7 @@ export async function POST(req: Request) {
       name,
       sku: sku || null,
       category: category || null,
+      imageUrl: imageUrl || null,
       buyPrice: buyPrice != null ? Number(buyPrice) : null,
       sellPrice: Number(sellPrice),
       unit: itemUnit || "pcs",
