@@ -5,6 +5,7 @@ import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { canUseRetail } from '@/lib/enums'
 import { Search, Plus, Minus, Trash2, CheckCircle2, AlertTriangle, Package } from 'lucide-react'
+import type { PosSale } from '@prisma/client'
 
 type InventoryItem = {
   id: number
@@ -32,6 +33,8 @@ export default function PosPage() {
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+  const [history, setHistory] = useState<PosSale[]>([])
+  const [loadingHistory, setLoadingHistory] = useState(false)
 
   const fetchItems = async () => {
     const res = await fetch('/api/inventory')
