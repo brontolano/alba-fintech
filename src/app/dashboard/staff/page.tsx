@@ -4,6 +4,7 @@ import { redirect } from "next/navigation"
 import { PlusCircle, Clock, FileText } from "lucide-react"
 import Link from "next/link"
 import { prisma } from "@/lib/prisma"
+import { RetailShortcuts } from "@/components/RetailShortcuts"
 
 function formatRupiah(n: number): string {
   return "Rp " + n.toLocaleString('id-ID')
@@ -69,6 +70,9 @@ export default async function StaffDashboardPage() {
             </div>
           </div>
         </div>
+
+        {/* Retail Shortcuts */}
+        <RetailShortcuts />
 
         {/* Riwayat Permohonan */}
         <section className="bg-white rounded-3xl p-6 shadow-sm border border-[#e3e2e6] space-y-4">

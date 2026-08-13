@@ -4,6 +4,7 @@ import { redirect } from "next/navigation"
 import { Wallet, TrendingUp, TrendingDown, Building2, Store, ShoppingBag } from "lucide-react"
 import Link from "next/link"
 import { prisma } from "@/lib/prisma"
+import { RetailShortcuts } from "@/components/RetailShortcuts"
 
 function formatRupiah(n: number): string {
   return `Rp ${n.toLocaleString('id-ID')}`
@@ -246,6 +247,9 @@ export default async function DashboardPage() {
             </div>
           </section>
         )}
+
+        {/* Retail Shortcuts */}
+        <RetailShortcuts />
 
         {/* Recent Transactions */}
         <section className="flex flex-col gap-3">

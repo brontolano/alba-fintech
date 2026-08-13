@@ -1,9 +1,10 @@
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/app/api/auth/[...nextauth]/route"
 import { redirect } from "next/navigation"
-import { CheckCircle2, ArrowRight, Package, Clock } from "lucide-react"
+import { CheckCircle2, ArrowRight, Package, Clock, ShoppingCart } from "lucide-react"
 import Link from "next/link"
 import { prisma } from "@/lib/prisma"
+import { RetailShortcuts } from "@/components/RetailShortcuts"
 
 function formatRupiah(n: number): string {
   return "Rp " + n.toLocaleString('id-ID')
@@ -69,6 +70,9 @@ export default async function ManagerDashboardPage() {
           </div>
           <div className="absolute top-0 right-0 w-48 h-48 bg-white/5 rounded-full -mr-16 -mt-16 pointer-events-none"></div>
         </section>
+
+        {/* Retail Shortcuts */}
+        <RetailShortcuts />
 
         {/* Quick Actions & Pending Approvals Alert */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

@@ -2,24 +2,15 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { useSession } from 'next-auth/react'
-import { Home, Receipt, CheckSquare, BarChart3, RefreshCcw, ShoppingCart, Package } from 'lucide-react'
-import { canUseRetail } from '@/lib/enums'
+import { Home, Receipt, CheckSquare, BarChart3, RefreshCcw } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 export function BottomNav() {
   const pathname = usePathname()
-  const { data: session } = useSession()
-
-  const role = session?.user?.role || ''
-  const unit = session?.user?.unit || ''
-  const enabled = (session?.user as { retailModuleEnabled?: boolean } | undefined)?.retailModuleEnabled === true
-  const showRetail = canUseRetail(role, unit, enabled)
 
   const navItems = [
     { name: 'Beranda', href: '/dashboard', icon: Home },
     { name: 'Transaksi', href: '/transactions', icon: Receipt },
-    ...(showRetail ? [{ name: 'Kasir', href: '/pos', icon: ShoppingCart }, { name: 'Inventori', href: '/inventory', icon: Package }] : []),
     { name: 'Persetujuan', href: '/approvals', icon: CheckSquare },
     { name: 'Laporan', href: '/reports', icon: BarChart3 },
     { name: 'Rekonsiliasi', href: '/reconciliations', icon: RefreshCcw },
