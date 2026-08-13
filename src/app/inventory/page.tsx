@@ -236,8 +236,11 @@ export default function InventoryPage() {
         {showForm && (
           <form onSubmit={submit} className="bg-white rounded-2xl p-5 shadow-sm border border-[#eeedf1] space-y-3 mb-6">
             <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Nama produk" required className="w-full bg-[#f4f3f7] rounded-2xl px-4 py-3" />
+            <p className="text-[11px] text-[#43474e] -mt-2 mb-1">Nama produk yang akan dijual</p>
             <input value={form.sku} onChange={(e) => setForm({ ...form, sku: e.target.value })} placeholder="SKU (opsional)" className="w-full bg-[#f4f3f7] rounded-2xl px-4 py-3" />
+            <p className="text-[11px] text-[#43474e] -mt-2 mb-1">Kode unik produk, bisa dikosongkan</p>
             <input value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} placeholder="Kategori" className="w-full bg-[#f4f3f7] rounded-2xl px-4 py-3" />
+            <p className="text-[11px] text-[#43474e] -mt-2 mb-1">Jenis/kategori produk</p>
 
             <div className="flex items-center gap-3">
               <input
@@ -261,12 +264,17 @@ export default function InventoryPage() {
 
             <div className="grid grid-cols-2 gap-3">
               <input value={form.buyPrice} onChange={(e) => setForm({ ...form, buyPrice: e.target.value })} placeholder="Harga beli" type="number" className="bg-[#f4f3f7] rounded-2xl px-4 py-3" />
+              <p className="text-[11px] text-[#43474e] col-span-2">Harga pembelian per unit</p>
               <input value={form.sellPrice} onChange={(e) => setForm({ ...form, sellPrice: e.target.value })} placeholder="Harga jual" type="number" required className="bg-[#f4f3f7] rounded-2xl px-4 py-3" />
+              <p className="text-[11px] text-[#43474e] col-span-2">Harga penjualan per unit</p>
            </div>
             <div className="grid grid-cols-3 gap-3">
               <input value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value })} placeholder="Satuan" className="bg-[#f4f3f7] rounded-2xl px-4 py-3" />
+              <p className="text-[11px] text-[#43474e] col-span-3">Satuan: pcs, box, pack, dll</p>
               <input value={form.stock} onChange={(e) => setForm({ ...form, stock: e.target.value })} placeholder="Stok" type="number" className="bg-[#f4f3f7] rounded-2xl px-4 py-3" />
+              <p className="text-[11px] text-[#43474e] col-span-3">Jumlah stok awal saat ini</p>
               <input value={form.minStock} onChange={(e) => setForm({ ...form, minStock: e.target.value })} placeholder="Min stok" type="number" className="bg-[#f4f3f7] rounded-2xl px-4 py-3" />
+              <p className="text-[11px] text-[#43474e] col-span-3">Batas minimum sebelum masuk status stok kritis</p>
            </div>
             <button type="submit" disabled={saving} className="w-full bg-[#022448] text-white py-3 rounded-2xl font-semibold disabled:opacity-50">
               {saving ? 'Menyimpan...' : 'Simpan Produk'}
