@@ -2,6 +2,7 @@
 
 import { useBrand } from '@/components/BrandProvider'
 import { BottomNav } from '@/components/BottomNav'
+import { NotificationBell } from '@/components/NotificationBell'
 
 export function BrandedLayout({ children }: { children: React.ReactNode }) {
   const { brand } = useBrand()
@@ -20,7 +21,7 @@ export function BrandedLayout({ children }: { children: React.ReactNode }) {
             )}
             <span className="text-sm font-bold text-[#022448]">{appName}</span>
           </div>
-          <div className="text-xs text-[#43474e]">v0.1.0</div>
+          <NotificationBell />
         </div>
       </header>
       <main className="flex-1 max-w-md w-full mx-auto bg-white shadow-sm relative">

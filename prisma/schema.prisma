@@ -36,6 +36,7 @@ model User {
   movements     StockMovement[]
   opnames       StockOpname[]
   auditLogs     AuditLog[]
+  notifications   Notification[]
 }
 
 model SystemConfig {
@@ -188,4 +189,16 @@ model AuditLog {
   createdAt  DateTime @default(now())
 
   actor User @relation(fields: [actorId], references: [id])
+}
+
+model Notification {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  title     String
+  message   String
+  type      String   // approval, stock, transaction, system
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
