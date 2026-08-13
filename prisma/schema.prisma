@@ -157,6 +157,10 @@ model PosSale {
   unitName     String    // Kantor, Kantin, Koperasi
   totalAmount  Decimal
   paymentMethod String   // Tunai, Transfer
+  status       String   @default("Completed") // Completed, Refunded, Void
+  refundOfId   Int?      // nullable self relation
+  refundOf     PosSale?  @relation("PosRefund", fields: [refundOfId], references: [id])
+  refunds      PosSale[] @relation("PosRefund")
   createdAt    DateTime  @default(now())
   createdById  Int
 
