@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { Providers } from "@/components/Providers";
+import { BrandProvider } from "@/components/BrandProvider";
+import { BrandedLayout } from "@/components/BrandedLayout";
 import { BottomNav } from "@/components/BottomNav";
 
 const inter = Inter({
@@ -32,12 +34,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0..1,0"
         />
       </head>
-      <body className="min-h-full flex flex-col bg-gray-50 text-slate-900 pb-16">
+      <body className="min-h-full flex flex-col bg-gray-50 text-slate-900">
         <Providers>
-          <main className="flex-1 max-w-md w-full mx-auto bg-white shadow-sm relative">
-            {children}
-          </main>
-          <BottomNav />
+          <BrandProvider>
+            <BrandedLayout>
+              {children}
+              <BottomNav />
+            </BrandedLayout>
+          </BrandProvider>
         </Providers>
       </body>
     </html>

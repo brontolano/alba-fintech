@@ -4,7 +4,11 @@ import { useEffect, useState } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { Search } from 'lucide-react'
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
+import * as XLSX from 'xlsx'
+import jsPDF from 'jspdf'
+import autoTable from 'jspdf-autotable'
+import { Search, Download, FileSpreadsheet, FileText } from 'lucide-react'
 
 type ReportRow = {
   id: number
@@ -35,6 +39,24 @@ function statusColor(status: string): string {
     default:
       return 'bg-gray-100 text-gray-800'
   }
+}
+
+const exportExcel = (rows: ReportRow[]) => {
+  const ws = XLSX.utils.json_to_sheet(rows.map(r => ({ ...r })))
+  const wb = XLSX.utils.book_new()
+  XLSX.utils.book_append_sheet(wb, ws, 'Laporan')
+  XLSX.writeFile(wb, 'laporan.xlsx')
+}
+
+const exportPdf = (rows: ReportRow[]) => {
+  const doc = new jsPDF()
+  doc.text('Laporan Keuangan', 14, 15)
+  autoTable(doc, {
+    startY: 20,
+    head: [['Unit', 'Kategori', 'Jenis', 'Nominal', 'Status', 'Tanggal']],
+    body: rows.map(r => [r.unit, r.category, r.type, formatRupiah(r.amount), r.status, new Date(r.transactionDate).toLocaleDateString('id-ID')]),
+  })
+  doc.save('laporan.pdf')
 }
 
 export default function ReportsPage() {
@@ -135,6 +157,14 @@ export default function ReportsPage() {
               {role === 'Pimpinan' ? 'Ringkasan keuangan lintas unit.' : role === 'Manager' ? `Ringkasan keuangan unit ${unit}.` : 'Ringkasan transaksi Anda.'}
             </p>
           </div>
+          <div className="flex gap-2">
+            <button onClick={() => filtered.length && exportExcel(filtered)} className="flex items-center gap-2 bg-[#022448] text-white px-4 py-2 rounded-full text-sm font-semibold">
+              <FileSpreadsheet className="w-4 h-4" /> Excel
+            </button>
+            <button onClick={() => filtered.length && exportPdf(filtered)} className="flex items-center gap-2 bg-[#022448] text-white px-4 py-2 rounded-full text-sm font-semibold">
+              <FileText className="w-4 h-4" /> PDF
+            </button>
+          </div>
           <div className="relative w-full sm:w-auto">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-on-surface-variant" />
             <input
@@ -162,6 +192,22 @@ export default function ReportsPage() {
               <div className="bg-white rounded-2xl p-4 shadow-sm border border-[#eeedf1]">
                 <p className="text-xs text-[#43474e] mb-1">Saldo</p>
                 <p className="text-xl font-bold text-[#1a1c1e] font-mono">{formatRupiah(net)}</p>
+              </div>
+            </div>
+
+            <div className="md:col-span-3 bg-white rounded-2xl shadow-sm border border-[#eeedf1] p-4">
+              <h3 className="text-base font-bold text-[#1a1c1e] mb-4">Tren Pemasukan vs Pengeluaran</h3>
+              <div className="h-64">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={filtered.slice(0, 10).reverse().map(item => ({ name: new Date(item.transactionDate).toLocaleDateString('id-ID', { day: '2-digit', month: 'short' }), Pemasukan: item.type === 'Debit' ? item.amount : 0, Pengeluaran: item.type === 'Kredit' ? item.amount : 0 }))}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="name" />
+                    <YAxis />
+                    <Tooltip formatter={(value) => formatRupiah(Number(value))} />
+                    <Bar dataKey="Pemasukan" fill="#10b981" />
+                    <Bar dataKey="Pengeluaran" fill="#ef4444" />
+                  </BarChart>
+                </ResponsiveContainer>
               </div>
             </div>
 

@@ -33,6 +33,15 @@ model User {
   reconciliations Reconciliation[]
   posSales        PosSale[]
   inventoryItems  InventoryItem[]
+  movements     StockMovement[]
+  opnames       StockOpname[]
+}
+
+model SystemConfig {
+  id        Int      @id @default(1)
+  appName   String   @default("ALBA Finance")
+  appLogo   String?
+  updatedAt DateTime @updatedAt
 }
 
 model Transaction {
@@ -111,6 +120,34 @@ model InventoryItem {
 
   createdBy User @relation(fields: [createdById], references: [id])
   saleItems PosSaleItem[]
+  movements StockMovement[]
+  opnames   StockOpname[]
+}
+
+model StockMovement {
+  id            Int      @id @default(autoincrement())
+  inventoryId   Int
+  type          String   // IN, OUT
+  quantity      Int
+  note          String?
+  createdById   Int
+  createdAt     DateTime @default(now())
+
+  inventory InventoryItem @relation(fields: [inventoryId], references: [id], onDelete: Cascade)
+  createdBy User          @relation(fields: [createdById], references: [id])
+}
+
+model StockOpname {
+  id            Int      @id @default(autoincrement())
+  inventoryId   Int
+  physicalStock Int
+  difference    Int
+  note          String?
+  createdById   Int
+  createdAt     DateTime @default(now())
+
+  inventory InventoryItem @relation(fields: [inventoryId], references: [id], onDelete: Cascade)
+  createdBy User          @relation(fields: [createdById], references: [id])
 }
 
 model PosSale {

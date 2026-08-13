@@ -4,48 +4,53 @@ import bcrypt from 'bcryptjs'
 const prisma = new PrismaClient()
 
 async function main() {
-  const passwordHash = await bcrypt.hash('password123', 10)
-
-  // Pimpinan
-  await prisma.user.upsert({
-    where: { email: 'pimpinan@alba.id' },
+  // Seed SystemConfig
+  const config = await prisma.systemConfig.upsert({
+    where: { id: 1 },
     update: {},
     create: {
-      email: 'pimpinan@alba.id',
-      name: 'Pimpinan Pesantren',
-      passwordHash,
-      role: 'Pimpinan',
-      unit: 'All',
+      id: 1,
+      appName: 'ALBA Finance',
+      appLogo: null,
+      updatedAt: new Date(),
     },
   })
+  console.log('SystemConfig seeded:', config)
 
-  // Manager Kantin
-  await prisma.user.upsert({
-    where: { email: 'manager.kantin@alba.id' },
-    update: {},
-    create: {
-      email: 'manager.kantin@alba.id',
-      name: 'Manager Kantin',
-      passwordHash,
-      role: 'Manager',
-      unit: 'Kantin',
-    },
-  })
+  // Seed default categories per unit
+  const units = ['Kantor', 'Kantin', 'Koperasi']
+  for (const unit of units) {
+    await prisma.category.upsert({
+      where: { id: unit === 'Kantor' ? 1 : unit === 'Kantin' ? 2 : 3 },
+      update: {},
+      create: {
+        name: unit === 'Kantor' ? 'Operasional Kantor' : unit === 'Kantin' ? 'Penjualan Kantin' : 'Koperasi',
+        type: 'Debit',
+        unit,
+      },
+    })
+  }
+  console.log('Categories seeded')
 
-  // Staff Kantin
-  await prisma.user.upsert({
-    where: { email: 'staff.kantin@alba.id' },
-    update: {},
-    create: {
-      email: 'staff.kantin@alba.id',
-      name: 'Staff Kantin',
-      passwordHash,
-      role: 'Staff',
-      unit: 'Kantin',
-    },
-  })
-
-  console.log('Seed data created successfully!')
+  // Seed default Pimpinan user
+  const exists = await prisma.user.findFirst()
+  if (!exists) {
+    const hash = await bcrypt.hash('pimpinan123', 10)
+    const pimpinan = await prisma.user.create({
+      data: {
+        email: 'pimpinan@alba.local',
+        passwordHash: hash,
+        name: 'Pimpinan',
+        role: 'Pimpinan',
+        unit: 'All',
+        unitType: 'Sederhana',
+        retailModuleEnabled: false,
+      },
+    })
+    console.log('Pimpinan seeded:', pimpinan.email)
+  } else {
+    console.log('Users already exist, skip seeding')
+  }
 }
 
 main()

@@ -1,10 +1,11 @@
 'use client'
+import { fileToCompressedDataUrl } from '@/lib/image-compress'
 
 import { useEffect, useRef, useState } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { canUseRetail } from '@/lib/enums'
-import { Search, Plus, AlertTriangle, Camera } from 'lucide-react'
+import { Search, Plus, AlertTriangle, Camera, ArrowDownToLine, ArrowUpFromLine, ClipboardList } from 'lucide-react'
 
 type InventoryItem = {
   id: number
@@ -48,10 +49,41 @@ export default function InventoryPage() {
 
   const fileRef = useRef<HTMLInputElement>(null)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+  const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null)
+  const [showMovement, setShowMovement] = useState(false)
+  const [showOpname, setShowOpname] = useState(false)
+  const [movementType, setMovementType] = useState<'IN' | 'OUT'>('IN')
+  const [movementQty, setMovementQty] = useState('')
+  const [movementNote, setMovementNote] = useState('')
+  const [opnameStock, setOpnameStock] = useState('')
+  const [opnameNote, setOpnameNote] = useState('')
+  const [movements, setMovements] = useState<{ id: number; type: string; quantity: number; note: string | null; createdAt: string; createdBy: { name: string } }[]>([])
+  const [opnames, setOpnames] = useState<{ id: number; physicalStock: number; difference: number; note: string | null; createdAt: string; createdBy: { name: string } }[]>([])
+  const [actionLoading, setActionLoading] = useState(false)
+  const [actionMessage, setActionMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
   const fetchItems = async () => {
     const res = await fetch('/api/inventory')
     if (res.ok) setItems(await res.json())
+  }
+
+  const fetchMovements = async (inventoryId: number) => {
+    const res = await fetch(`/api/inventory/movements?inventoryId=${inventoryId}`)
+    if (res.ok) setMovements(await res.json())
+  }
+
+  const fetchOpnames = async (inventoryId: number) => {
+    const res = await fetch(`/api/inventory/opname?inventoryId=${inventoryId}`)
+    if (res.ok) setOpnames(await res.json())
+  }
+
+  const openItem = (item: InventoryItem) => {
+    setSelectedItem(item)
+    setShowMovement(false)
+    setShowOpname(false)
+    setActionMessage(null)
+    fetchMovements(item.id)
+    fetchOpnames(item.id)
   }
 
   useEffect(() => {
@@ -76,20 +108,69 @@ export default function InventoryPage() {
     }
   }, [session, role, enabled, userUnit, router])
 
-  const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
-    if (file.size > 2 * 1024 * 1024) {
-      setMessage({ type: 'error', text: 'Ukuran gambar max 2MB' })
-      return
-    }
-    const reader = new FileReader()
-    reader.onload = () => {
-      const dataUrl = String(reader.result || '')
+    try {
+      const dataUrl = await fileToCompressedDataUrl(file)
       setPreviewUrl(dataUrl)
       setForm((f) => ({ ...f, imageUrl: dataUrl }))
+    } catch {
+      setMessage({ type: 'error', text: 'Gagal memproses gambar' })
     }
-    reader.readAsDataURL(file)
+  }
+
+  const submitMovement = async () => {
+    if (!selectedItem || !movementQty) return
+    setActionLoading(true)
+    setActionMessage(null)
+    try {
+      const res = await fetch('/api/inventory/movements', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ inventoryId: selectedItem.id, type: movementType, quantity: Number(movementQty), note: movementNote }),
+      })
+      if (res.ok) {
+        const data = await res.json()
+        setActionMessage({ type: 'success', text: `Stok ${movementType === 'IN' ? 'masuk' : 'keluar'} berhasil. Stok saat ini: ${data.currentStock}` })
+        setMovementQty('')
+        setMovementNote('')
+        setShowMovement(false)
+        fetchMovements(selectedItem.id)
+        fetchItems()
+      } else {
+        const err = await res.json()
+        setActionMessage({ type: 'error', text: err.error || 'Gagal' })
+      }
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
+  const submitOpname = async () => {
+    if (!selectedItem || opnameStock === '') return
+    setActionLoading(true)
+    setActionMessage(null)
+    try {
+      const res = await fetch('/api/inventory/opname', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ inventoryId: selectedItem.id, physicalStock: Number(opnameStock), note: opnameNote }),
+      })
+      if (res.ok) {
+        const data = await res.json()
+        setActionMessage({ type: 'success', text: `Opname berhasil. Selisih: ${data.difference > 0 ? '+' : ''}${data.difference}` })
+        setOpnameStock('')
+        setOpnameNote('')
+        setShowOpname(false)
+        fetchOpnames(selectedItem.id)
+      } else {
+        const err = await res.json()
+        setActionMessage({ type: 'error', text: err.error || 'Gagal' })
+      }
+    } finally {
+      setActionLoading(false)
+    }
   }
 
   const submit = async (e: React.FormEvent) => {
@@ -200,7 +281,7 @@ export default function InventoryPage() {
 
         <div className="space-y-3">
           {filtered.map((item) => (
-            <div key={item.id} className="bg-white rounded-2xl p-4 shadow-sm border border-[#eeedf1] flex items-center justify-between gap-3">
+            <div key={item.id} onClick={() => openItem(item)} className="bg-white rounded-2xl p-4 shadow-sm border border-[#eeedf1] flex items-center justify-between gap-3 cursor-pointer active:scale-[0.99] transition-transform">
               {item.imageUrl ? (
                 <img src={item.imageUrl} alt={item.name} className="w-14 h-14 rounded-xl object-cover flex-shrink-0" />
               ) : (

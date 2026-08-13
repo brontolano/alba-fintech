@@ -23,7 +23,9 @@ export default function ProfilePage() {
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [saving, setSaving] = useState(false)
   const [uploading, setUploading] = useState(false)
+  const [savingBrand, setSavingBrand] = useState(false)
   const [error, setError] = useState("")
+  const [appConfig, setAppConfig] = useState<{ appName: string; appLogo: string | null } | null>(null)
 
   const baseFallback: UserProfile = {
     name: "H. Ahmad Fauzi, M.Ag.",
@@ -76,7 +78,19 @@ export default function ProfilePage() {
       }
     }
 
+    async function loadBrandConfig() {
+      try {
+        const res = await fetch("/api/config", { cache: "no-store" })
+        if (res.ok && !cancelled) {
+          setAppConfig(await res.json())
+        }
+      } catch {
+        // ignore
+      }
+    }
+
     void loadProfile()
+    void loadBrandConfig()
     return () => {
       cancelled = true
     }
@@ -178,6 +192,35 @@ export default function ProfilePage() {
       setError("Gagal memperbarui kata sandi.")
     } finally {
       setSaving(false)
+    }
+  }
+
+  async function saveBrand() {
+    const nameInput = document.getElementById("appName") as HTMLInputElement | null
+    const logoInput = document.getElementById("appLogo") as HTMLInputElement | null
+    if (!nameInput || !nameInput.value.trim()) {
+      setError("Nama aplikasi wajib diisi.")
+      return
+    }
+    setSavingBrand(true)
+    setError("")
+    try {
+      const res = await fetch("/api/config", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ appName: nameInput.value.trim(), appLogo: logoInput?.value.trim() || null }),
+      })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: "Gagal menyimpan brand." }))
+        setError(err.error || "Gagal menyimpan brand.")
+        return
+      }
+      const updated = await res.json()
+      setAppConfig(updated)
+    } catch {
+      setError("Gagal menyimpan brand.")
+    } finally {
+      setSavingBrand(false)
     }
   }
 
@@ -317,6 +360,45 @@ export default function ProfilePage() {
             )}
           </div>
         </section>
+
+        {/* Brand Settings (Pimpinan only) */}
+        {user.role === "Pimpinan" && (
+          <section className="bg-white rounded-2xl p-6 shadow-sm border border-[#eeedf1] mt-6">
+            <h3 className="text-xl font-bold text-[#1a1c1e] mb-4 flex items-center gap-2">
+              <span className="material-symbols-outlined text-[#022448]">palette</span>
+              Pengaturan Brand Aplikasi
+            </h3>
+            <p className="text-sm text-[#43474e] mb-4">Atur nama dan logo aplikasi yang tampil di seluruh sistem.</p>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-[#43474e] uppercase tracking-wider mb-1" htmlFor="appName">Nama Aplikasi</label>
+                <input
+                  id="appName"
+                  defaultValue={appConfig?.appName || "ALBA Finance"}
+                  className="w-full bg-[#f4f3f7] border-none rounded-2xl px-4 py-3 text-base text-[#1a1c1e] focus:ring-2 focus:ring-[#16677a] focus:outline-none"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-[#43474e] uppercase tracking-wider mb-1" htmlFor="appLogo">Logo (Data URL / URL Gambar)</label>
+                <input
+                  id="appLogo"
+                  defaultValue={appConfig?.appLogo || ""}
+                  placeholder="https://... atau data:image/...;base64,..."
+                  className="w-full bg-[#f4f3f7] border-none rounded-2xl px-4 py-3 text-base text-[#1a1c1e] focus:ring-2 focus:ring-[#16677a] focus:outline-none"
+                />
+                <p className="text-xs text-[#43474e] mt-1">Gunakan URL gambar atau Data URL (base64). Rekomendasi: SVG/PNG transparan, max 200x200px.</p>
+              </div>
+              <button
+                onClick={saveBrand}
+                disabled={savingBrand}
+                className="w-full bg-[#022448] text-white py-3 rounded-2xl font-semibold disabled:opacity-50"
+              >
+                {savingBrand ? "Menyimpan..." : "Simpan Brand"}
+              </button>
+            </div>
+          </section>
+        )}
 
         {/* Logout Section */}
         <section className="mt-8 flex justify-center pb-8">
