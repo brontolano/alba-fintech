@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/app/api/auth/[...nextauth]/route"
 import { prisma } from "@/lib/prisma"
+import { logAction } from "@/lib/audit"
 
 export async function POST(
   req: Request,
@@ -21,6 +22,11 @@ export async function POST(
       return NextResponse.json({ error: "Invalid status" }, { status: 400 })
     }
 
+    const original = await prisma.transaction.findUnique({ where: { id } })
+    if (!original) {
+      return NextResponse.json({ error: "Transaction not found" }, { status: 404 })
+    }
+
     const updated = await prisma.transaction.update({
       where: { id },
       data: {
@@ -38,6 +44,22 @@ export async function POST(
         status,
         notes: notes || null,
       },
+    })
+
+    await logAction({
+      actorId: Number(session.user.id),
+      action: status === "Approved" ? "approve" : "reject",
+      entity: "Transaction",
+      entityId: id,
+      metadata: {
+        previousStatus: original.status,
+        newStatus: status,
+        amount: Number(original.amount),
+        unit: original.unit,
+        category: original.category,
+      },
+      ip: req.headers.get("x-forwarded-for") || undefined,
+      userAgent: req.headers.get("user-agent") || undefined,
     })
 
     return NextResponse.json({

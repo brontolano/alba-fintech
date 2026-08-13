@@ -35,6 +35,7 @@ model User {
   inventoryItems  InventoryItem[]
   movements     StockMovement[]
   opnames       StockOpname[]
+  auditLogs     AuditLog[]
 }
 
 model SystemConfig {
@@ -173,4 +174,18 @@ model PosSaleItem {
 
   posSale   PosSale       @relation(fields: [posSaleId], references: [id], onDelete: Cascade)
   inventory InventoryItem @relation(fields: [inventoryId], references: [id])
+}
+
+model AuditLog {
+  id         Int      @id @default(autoincrement())
+  actorId    Int
+  action     String   // create/update/delete/approve/reject/config_change
+  entity     String   // Transaction, User, InventoryItem, SystemConfig, PosSale
+  entityId   Int
+  metadata   String?  // JSON string summary
+  ip         String?
+  userAgent  String?
+  createdAt  DateTime @default(now())
+
+  actor User @relation(fields: [actorId], references: [id])
 }
