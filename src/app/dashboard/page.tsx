@@ -1,7 +1,7 @@
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/app/api/auth/[...nextauth]/route"
 import { redirect } from "next/navigation"
-import { Wallet, TrendingUp, TrendingDown, Building2, Store, ShoppingBag } from "lucide-react"
+import { Wallet, TrendingUp, TrendingDown, Building2, Store, ShoppingBag, MessageSquare, Users } from "lucide-react"
 import Link from "next/link"
 import { prisma } from "@/lib/prisma"
 import { RetailShortcuts } from "@/components/RetailShortcuts"
@@ -251,6 +251,20 @@ export default async function DashboardPage() {
         {/* Retail Shortcuts */}
         <RetailShortcuts />
 
+        {/* AI Assistant Quick Access */}
+        <Link href="/ai/assistant" className="block rounded-2xl border border-[#eeedf1] bg-white p-4 shadow-sm active:scale-[0.99] transition-transform">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#022448] text-white">
+              <MessageSquare className="h-5 w-5" />
+            </div>
+            <div className="flex-1">
+              <p className="text-sm font-bold text-[#1a1c1e]">Asisten AI</p>
+              <p className="text-[11px] text-[#43474e]">Tanya saldo, transaksi, stok, approval, atau laporan</p>
+            </div>
+            <span className="text-xs font-semibold text-[#022448]">Coba</span>
+          </div>
+        </Link>
+
         {/* Recent Transactions */}
         <section className="flex flex-col gap-3">
           <div className="flex justify-between items-center">
@@ -291,6 +305,20 @@ export default async function DashboardPage() {
             )}
           </div>
         </section>
+
+        {/* User Management Quick Access */}
+        <Link href="/users" className="block rounded-2xl border border-[#eeedf1] bg-white p-4 shadow-sm active:scale-[0.99] transition-transform">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#022448] text-white">
+              <Users className="h-5 w-5" />
+            </div>
+            <div className="flex-1">
+              <p className="text-sm font-bold text-[#1a1c1e]">Manajemen User</p>
+              <p className="text-[11px] text-[#43474e]">Tambah Manager/Staff, atur unit dan akses retail</p>
+            </div>
+            <span className="text-xs font-semibold text-[#022448]">Buka</span>
+          </div>
+        </Link>
       </main>
     </div>
   )
