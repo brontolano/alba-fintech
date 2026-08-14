@@ -37,6 +37,8 @@ model User {
   opnames       StockOpname[]
   auditLogs     AuditLog[]
   notifications   Notification[]
+  openedShifts CashierShift[] @relation("OpenedShifts")
+  closedShifts CashierShift[] @relation("ClosedShifts")
 }
 
 model SystemConfig {
@@ -161,11 +163,33 @@ model PosSale {
   refundOfId   Int?      // nullable self relation
   refundOf     PosSale?  @relation("PosRefund", fields: [refundOfId], references: [id])
   refunds      PosSale[] @relation("PosRefund")
+  shiftId      Int?
   createdAt    DateTime  @default(now())
   createdById  Int
 
   createdBy User         @relation(fields: [createdById], references: [id])
   items     PosSaleItem[]
+  shift     CashierShift? @relation(fields: [shiftId], references: [id])
+}
+
+model CashierShift {
+  id        Int       @id @default(autoincrement())
+  unitName  String    // Kantor, Kantin, Koperasi
+  openedBy  Int
+  closedBy  Int?
+  openedAt  DateTime  @default(now())
+  closedAt  DateTime?
+  openingCash Decimal
+  closingCash Decimal?
+  cashDifference Decimal?
+  note      String?
+  status    String    @default("Open") // Open, Closed
+
+  openedByUser User   @relation("OpenedShifts", fields: [openedBy], references: [id])
+  closedByUser User?  @relation("ClosedShifts", fields: [closedBy], references: [id])
+  sales     PosSale[]
+
+  @@index([unitName, status])
 }
 
 model PosSaleItem {
