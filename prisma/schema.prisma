@@ -39,6 +39,7 @@ model User {
   notifications   Notification[]
   openedShifts CashierShift[] @relation("OpenedShifts")
   closedShifts CashierShift[] @relation("ClosedShifts")
+  purchaseOrders PurchaseOrder[] @relation("UserPurchaseOrders")
 }
 
 model SystemConfig {
@@ -106,6 +107,53 @@ model Category {
   createdAt DateTime @default(now())
 }
 
+model Supplier {
+  id        Int       @id @default(autoincrement())
+  name      String
+  contact   String?
+  email     String?
+  phone     String?
+  address   String?
+  unitName  String    // Kantor, Kantin, Koperasi
+  createdAt DateTime  @default(now())
+
+  purchaseOrders PurchaseOrder[] @relation("SupplierPurchaseOrders")
+}
+
+model PurchaseOrder {
+  id           Int       @id @default(autoincrement())
+  supplierId   Int
+  unitName     String    // Kantor, Kantin, Koperasi
+  orderDate    DateTime  @default(now())
+  totalAmount  Decimal
+  status       String    @default("Pending") // Pending, Received, Cancelled
+  receivedAt   DateTime?
+  notes        String?
+  createdById  Int
+  createdAt    DateTime  @default(now())
+
+  supplier Supplier @relation("SupplierPurchaseOrders", fields: [supplierId], references: [id])
+  createdBy User @relation("UserPurchaseOrders", fields: [createdById], references: [id])
+  items PurchaseOrderItem[]
+
+  @@index([supplierId])
+  @@index([unitName, status])
+}
+
+model PurchaseOrderItem {
+  id          Int       @id @default(autoincrement())
+  purchaseOrderId Int
+  inventoryId Int
+  quantity    Int
+  unitPrice   Decimal
+  subtotal    Decimal
+
+  purchaseOrder PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  inventory InventoryItem @relation("PurchaseOrderInventory", fields: [inventoryId], references: [id])
+
+  @@index([purchaseOrderId])
+}
+
 model InventoryItem {
   id          Int       @id @default(autoincrement())
   name        String
@@ -126,6 +174,7 @@ model InventoryItem {
   saleItems PosSaleItem[]
   movements StockMovement[]
   opnames   StockOpname[]
+  purchaseOrderItems PurchaseOrderItem[] @relation("PurchaseOrderInventory")
 }
 
 model StockMovement {
