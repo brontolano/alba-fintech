@@ -1,7 +1,4 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Get a free hosted Postgres database in seconds: `npx create-db`
+// ALBA Finance — Prisma schema (MySQL)
 
 generator client {
   provider = "prisma-client-js"
@@ -12,8 +9,8 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// SQLite doesn't support native enums. Values are kept as Strings
-// and constrained at the application layer via TS unions in `src/lib/enums.ts`.
+// MySQL doesn't support native enums well with Prisma.
+// Values kept as Strings, constrained at app layer via TS unions in src/lib/enums.ts.
 
 model User {
   id                  Int       @id @default(autoincrement())
