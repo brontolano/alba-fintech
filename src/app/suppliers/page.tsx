@@ -49,6 +49,7 @@ export default function SuppliersPage() {
       router.replace('/dashboard')
       return
     }
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchSuppliers()
   }, [session, role, router])
 

@@ -11,7 +11,7 @@ export async function GET() {
 
 export async function PUT(req: Request) {
   const session = await getServerSession(authOptions)
-  if (!session || session.user.role !== "Pimpinan") {
+  if (!session || session.user.role !== "Pimpinan" && session.user.role !== "Superadmin") {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 

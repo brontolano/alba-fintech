@@ -74,6 +74,7 @@ export default function PurchaseOrdersPage() {
       return
     }
     fetchOrders()
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchSuppliers()
   }, [session, role, router])
 
