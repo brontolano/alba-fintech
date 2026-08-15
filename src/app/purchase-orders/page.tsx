@@ -73,8 +73,8 @@ export default function PurchaseOrdersPage() {
       router.replace('/dashboard')
       return
     }
-    fetchOrders()
     // eslint-disable-next-line react-hooks/set-state-in-effect
+    fetchOrders()
     fetchSuppliers()
   }, [session, role, router])
 
