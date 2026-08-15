@@ -12,7 +12,7 @@ export async function GET() {
 
   const role = session.user.role
 
-  if (role !== "Pimpinan") {
+  if (role !== "Pimpinan" && role !== "Superadmin") {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 })
   }
 

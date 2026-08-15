@@ -32,7 +32,7 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "Retail module disabled" }, { status: 403 })
   }
 
-  if (role !== "Pimpinan" && item.unitName !== unit) {
+  if (role !== "Pimpinan" && role !== "Superadmin" && item.unitName !== unit) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 })
   }
 
@@ -73,7 +73,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Retail module disabled" }, { status: 403 })
   }
 
-  if (role !== "Pimpinan" && item.unitName !== unit) {
+  if (role !== "Pimpinan" && role !== "Superadmin" && item.unitName !== unit) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 })
   }
 
