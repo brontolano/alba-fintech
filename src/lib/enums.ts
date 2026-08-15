@@ -1,6 +1,6 @@
 // Type guards for string-based "enums" (SQLite doesn't support native enums)
 
-export const ROLES = ["Pimpinan", "Manager", "Staff"] as const
+export const ROLES = ["Superadmin", "Pimpinan", "Manager", "Staff"] as const
 export type Role = (typeof ROLES)[number]
 
 export const UNITS = ["Kantor", "Kantin", "Koperasi", "All"] as const

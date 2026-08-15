@@ -32,22 +32,22 @@ async function main() {
   }
   console.log('Categories seeded')
 
-  // Seed default Pimpinan user
+  // Seed default Superadmin user
   const exists = await prisma.user.findFirst()
   if (!exists) {
-    const hash = await bcrypt.hash('pimpinan123', 10)
-    const pimpinan = await prisma.user.create({
+    const hash = await bcrypt.hash('bismillah', 10)
+    const superadmin = await prisma.user.create({
       data: {
-        email: 'pimpinan@alba.local',
+        email: 'admin@brontolano',
         passwordHash: hash,
-        name: 'Pimpinan',
-        role: 'Pimpinan',
+        name: 'Superadmin',
+        role: 'Superadmin',
         unit: 'All',
         unitType: 'Sederhana',
         retailModuleEnabled: false,
       },
     })
-    console.log('Pimpinan seeded:', pimpinan.email)
+    console.log('Superadmin seeded:', superadmin.email)
   } else {
     console.log('Users already exist, skip seeding')
   }
