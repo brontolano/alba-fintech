@@ -3,6 +3,7 @@ import withPWA from "@ducanh2912/next-pwa";
 
 const nextConfig: NextConfig = {
   turbopack: {},
+  serverExternalPackages: ["@prisma/client", "@node-rs/argon2"],
   images: {
     remotePatterns: [
       {
@@ -12,6 +13,10 @@ const nextConfig: NextConfig = {
       {
         protocol: "https",
         hostname: "images.unsplash.com",
+      },
+      {
+        protocol: "https",
+        hostname: "alba.brontolano.com",
       },
     ],
   },

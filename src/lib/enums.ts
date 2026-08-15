@@ -1,4 +1,4 @@
-// Type guards for string-based "enums" (SQLite doesn't support native enums)
+// Type guards for string-based enums (MySQL string columns enforced at app layer)
 
 export const ROLES = ["Superadmin", "Pimpinan", "Manager", "Staff"] as const
 export type Role = (typeof ROLES)[number]
