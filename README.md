@@ -63,7 +63,7 @@ npm run dev
 ## Default Superadmin
 
 ```
-Email:    admin@brontolano
+Email:    admin@brontolano.com
 Password: bismillah
 Role:     Superadmin (akses sama Pimpinan + semua unit)
 ```
