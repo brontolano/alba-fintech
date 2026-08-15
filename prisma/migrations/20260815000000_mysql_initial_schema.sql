@@ -308,7 +308,5 @@ SET FOREIGN_KEY_CHECKS = 1;
 -- SEED: Superadmin
 -- Password: bismillah
 -- ============================================================
--- Hash di-generate oleh prisma db seed di aplikasi.
--- Baris ini placeholder; isi via aplikasi atau seed script.
--- INSERT INTO `User` (`email`, `passwordHash`, `name`, `role`, `unit`, `unitType`, `retailModuleEnabled`) VALUES
---   ('admin@brontolano', '<HASH>', 'Superadmin', 'Superadmin', 'All', 'Sederhana', 0);
+INSERT IGNORE INTO `User` (`email`, `passwordHash`, `name`, `role`, `unit`, `unitType`, `retailModuleEnabled`) VALUES
+  ('admin@brontolano', '$2b$10$2wGSLqVEIyXHFDgMULm.rO.nR7nIw3r5wF8sPZ8M7v4v.dzW1cW0a', 'Superadmin', 'Superadmin', 'All', 'Sederhana', 0);
