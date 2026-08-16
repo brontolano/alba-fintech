@@ -309,4 +309,4 @@ SET FOREIGN_KEY_CHECKS = 1;
 -- Password: bismillah
 -- ============================================================
 INSERT IGNORE INTO `User` (`email`, `passwordHash`, `name`, `role`, `unit`, `unitType`, `retailModuleEnabled`) VALUES
-  ('admin@brontolano.com', '$2b$10$2wGSLqVEIyXHFDgMULm.rO.nR7nIw3r5wF8sPZ8M7v4v.dzW1cW0a', 'Superadmin', 'Superadmin', 'All', 'Sederhana', 0);
+  ('admin@brontolano.com', '$2a$14$7LrLJ7swKNBH4bc3uUUryuCLz1TSSNVxaP5EEV08vmmJpoIXxc516', 'Superadmin', 'Superadmin', 'All', 'Sederhana', 0);
