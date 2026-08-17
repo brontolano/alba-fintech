@@ -20,11 +20,14 @@ export default async function DashboardPage() {
   const { user } = session
 
   // Redirect based on role
-  if (user.role === 'Manager') {
-    redirect('/dashboard/manager')
-  } else if (user.role === 'Staff') {
-    redirect('/dashboard/staff')
-  }
+  if (user.role === 'Superadmin') {
+      // Superadmin gets full control dashboard (separate from Pimpinan module)
+      redirect('/dashboard/superadmin')
+    } else if (user.role === 'Manager') {
+      redirect('/dashboard/manager')
+    } else if (user.role === 'Staff') {
+      redirect('/dashboard/staff')
+    }
 
   // Pimpinan Executive Dashboard
   const transactions = await prisma.transaction.findMany({
