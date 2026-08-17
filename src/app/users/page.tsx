@@ -34,7 +34,8 @@ export default function UsersPage() {
     name: '',
     email: '',
     password: '',
-    unit: role === 'Pimpinan' ? 'Kantin' : actorUnit || 'Kantor',
+    role: 'Pimpinan' as 'Pimpinan' | 'Manager' | 'Staff',
+    unit: role === 'Pimpinan' || role === 'Superadmin' ? 'Kantin' : actorUnit || 'Kantor',
     unitType: 'Sederhana' as 'Sederhana' | 'Retail',
     retailModuleEnabled: false,
   })
@@ -49,7 +50,7 @@ export default function UsersPage() {
       router.replace('/login')
       return
     }
-    if (role !== 'Pimpinan' && role !== 'Manager') {
+    if (role !== 'Pimpinan' && role !== 'Superadmin' && role !== 'Manager') {
       router.replace('/dashboard')
       return
     }
@@ -84,7 +85,8 @@ export default function UsersPage() {
           name: '',
           email: '',
           password: '',
-          unit: role === 'Pimpinan' ? 'Kantin' : actorUnit || 'Kantor',
+          role: 'Pimpinan' as 'Pimpinan' | 'Manager' | 'Staff',
+          unit: role === 'Pimpinan' || role === 'Superadmin' ? 'Kantin' : actorUnit || 'Kantor',
           unitType: 'Sederhana',
           retailModuleEnabled: false,
         })
@@ -99,10 +101,11 @@ export default function UsersPage() {
     }
   }
 
-  if (!session || (role !== 'Pimpinan' && role !== 'Manager')) return null
+  if (!session || (role !== 'Pimpinan' && role !== 'Superadmin' && role !== 'Manager')) return null
 
-  const targetRoleLabel = role === 'Pimpinan' ? 'Manager' : 'Staff'
-  const canEditUnit = role === 'Pimpinan'
+  const canEditUnit = role === 'Pimpinan' || role === 'Superadmin'
+  const canChooseRole = role === 'Superadmin'
+  const targetRoleLabel = role === 'Superadmin' ? 'User' : role === 'Pimpinan' ? 'Manager' : 'Staff'
 
   return (
     <div className="min-h-screen bg-[#faf9fc] text-[#1a1c1e] font-body">
@@ -181,19 +184,22 @@ export default function UsersPage() {
                  </option>
                 ))}
              </select>
-              <select
-                value={form.unitType}
-                onChange={(e) =>
-                  setForm({ ...form, unitType: e.target.value as 'Sederhana' | 'Retail' })
-                }
-                className="bg-[#f4f3f7] rounded-2xl px-4 py-3"
-              >
-                {UNIT_TYPES.map((t) => (
-                  <option key={t} value={t}>
-                    {t}
-                 </option>
-                ))}
-             </select>
+             {canChooseRole && (
+               <select
+                 value={(form as any).role}
+                 onChange={(e) => setForm({ ...form, role: e.target.value } as any)}
+                 className="bg-[#f4f3f7] rounded-2xl px-4 py-3"
+               >
+                 <option value="Pimpinan">Pimpinan</option>
+                 <option value="Manager">Manager</option>
+                 <option value="Staff">Staff</option>
+               </select>
+             )}
+             {!canChooseRole && (
+               <div className="bg-[#f4f3f7] rounded-2xl px-4 py-3 text-sm text-[#43474e] flex items-center">
+                 {targetRoleLabel}
+               </div>
+             )}
            </div>
             {form.unitType === 'Retail' && (
               <label className="flex items-center gap-2 text-sm text-[#1a1c1e]">

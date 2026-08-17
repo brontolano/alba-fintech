@@ -8,7 +8,8 @@ import { isRole, isUnit, isUnitType, isRetailUnit } from "@/lib/enums"
 type CreateUserBody = {
   name: string
   email: string
-  password: string
+  password?: string
+  role: "Pimpinan" | "Manager" | "Staff" | "Superadmin"
   unit: string
   unitType?: string
   retailModuleEnabled?: boolean
@@ -21,15 +22,12 @@ export async function GET() {
   const role = session.user.role
   const unit = session.user.unit
 
-  // Only Pimpinan and Manager can list users
-  if (role !== "Pimpinan" && role !== "Manager") {
+  if (role !== "Pimpinan" && role !== "Superadmin" && role !== "Manager") {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 })
   }
 
-  const where = role === "Pimpinan" ? {} : { OR: [{ unit }, { unit: "All" }] }
-
   const users = await prisma.user.findMany({
-    where,
+    where: role === "Superadmin" || role === "Pimpinan" ? {} : { OR: [{ unit }, { unit: "All" }] },
     orderBy: [{ role: "asc" }, { name: "asc" }],
     select: {
       id: true,
@@ -56,31 +54,37 @@ export async function POST(req: Request) {
   const actorRole = session.user.role
   const actorUnit = session.user.unit
 
-  if (actorRole !== "Pimpinan" && actorRole !== "Manager") {
+  if (actorRole !== "Pimpinan" && actorRole !== "Superadmin" && actorRole !== "Manager") {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 })
   }
 
   const body = (await req.json()) as CreateUserBody
-  const { name, email, password, unit, unitType, retailModuleEnabled } = body
+  const { name, email, password, role, unit, unitType, retailModuleEnabled } = body
 
-  if (!name || !email || !password || !unit) {
+  if (!name || !email || !password || !unit || !role) {
     return NextResponse.json({ error: "Field wajib belum lengkap" }, { status: 400 })
+  }
+  if (!isRole(role)) {
+    return NextResponse.json({ error: "Role tidak valid" }, { status: 400 })
   }
   if (!isUnit(unit)) {
     return NextResponse.json({ error: "Unit tidak valid" }, { status: 400 })
   }
 
-  // Authorization: Pimpinan creates Manager with new unit; Manager creates Staff in own unit
-  let targetRole: "Manager" | "Staff"
-  if (actorRole === "Pimpinan") {
-    targetRole = "Manager"
-    if (unit === "All") {
-      return NextResponse.json({ error: "Manager tidak boleh unit All" }, { status: 400 })
+  // Authorization rules
+  if (actorRole === "Manager") {
+    if (role !== "Staff") {
+      return NextResponse.json({ error: "Manager hanya bisa membuat Staff" }, { status: 403 })
     }
-  } else {
-    targetRole = "Staff"
     if (unit !== actorUnit) {
       return NextResponse.json({ error: "Manager hanya bisa menambah Staff di unit sendiri" }, { status: 403 })
+    }
+  } else if (actorRole === "Pimpinan") {
+    if (role === "Superadmin") {
+      return NextResponse.json({ error: "Pimpinan tidak boleh membuat Superadmin" }, { status: 403 })
+    }
+    if (unit === "All") {
+      return NextResponse.json({ error: "Manager tidak boleh unit All" }, { status: 400 })
     }
   }
 
@@ -102,7 +106,7 @@ export async function POST(req: Request) {
       name,
       email,
       passwordHash,
-      role: targetRole,
+      role,
       unit,
       unitType: finalUnitType,
       retailModuleEnabled: finalRetailEnabled,
