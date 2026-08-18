@@ -10,18 +10,17 @@ export async function GET() {
   }
 
   const role = session.user.role
+  const unitId = session.user.unitId
 
   if (role === "Manager") {
-    const where =
-      session.user.unit === "All"
-        ? { status: "Submitted" }
-        : { status: "Submitted", unit: session.user.unit }
+    const where: any = { status: "Submitted" }
+    if (unitId) where.unitId = unitId
 
     const pending = await prisma.transaction.findMany({
       where,
       orderBy: { transactionDate: "desc" },
       include: {
-        user: { select: { id: true, name: true, role: true, unit: true, image: true } },
+        user: { select: { id: true, name: true, role: true, unitId: true, image: true } },
       },
     })
 
@@ -38,11 +37,14 @@ export async function GET() {
   }
 
   if (role === "Pimpinan") {
+    const where: any = { status: "Pending" }
+    if (session.user.tenantId) where.tenantId = session.user.tenantId
+
     const pending = await prisma.transaction.findMany({
-      where: { status: "Pending" },
+      where,
       orderBy: { transactionDate: "desc" },
       include: {
-        user: { select: { id: true, name: true, role: true, unit: true, image: true } },
+        user: { select: { id: true, name: true, role: true, unitId: true, image: true } },
       },
     })
 
@@ -81,11 +83,14 @@ export async function PATCH(req: Request) {
     }
 
     const role = session.user.role
+    const unitId = session.user.unitId
+    const tenantId = session.user.tenantId
+
     const tx = await prisma.transaction.findUnique({
       where: { id: transactionId },
       select: {
         id: true,
-        unit: true,
+        unitId: true,
         status: true,
         type: true,
         amount: true,
@@ -94,6 +99,7 @@ export async function PATCH(req: Request) {
         method: true,
         userId: true,
         approvedById: true,
+        tenantId: true,
       },
     })
 
@@ -101,12 +107,17 @@ export async function PATCH(req: Request) {
       return NextResponse.json({ error: "Transaction not found" }, { status: 404 })
     }
 
+    // Check tenant access
+    if (tenantId && tx.tenantId !== tenantId) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+    }
+
     if (role === "Manager") {
       if (tx.status !== "Submitted") {
         return NextResponse.json({ error: "Transaction is not in Submitted state" }, { status: 409 })
       }
 
-      if (tx.unit !== session.user.unit && session.user.unit !== "All") {
+      if (unitId && tx.unitId !== unitId) {
         return NextResponse.json({ error: "Forbidden" }, { status: 403 })
       }
 
@@ -155,4 +166,3 @@ export async function PATCH(req: Request) {
     return NextResponse.json({ error: "Failed to process approval" }, { status: 500 })
   }
 }
-

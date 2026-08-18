@@ -8,7 +8,7 @@ export async function POST(
   req: Request,
   props: { params: Promise<{ id: string }> }
 ) {
-  const params = await props.params;
+  const params = await props.params
   const session = await getServerSession(authOptions)
   if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
@@ -25,6 +25,11 @@ export async function POST(
     const original = await prisma.transaction.findUnique({ where: { id } })
     if (!original) {
       return NextResponse.json({ error: "Transaction not found" }, { status: 404 })
+    }
+
+    // Check tenant access
+    if (session.user.tenantId && original.tenantId !== session.user.tenantId) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }
 
     const updated = await prisma.transaction.update({
@@ -55,7 +60,7 @@ export async function POST(
         previousStatus: original.status,
         newStatus: status,
         amount: Number(original.amount),
-        unit: original.unit,
+        unitId: original.unitId,
         category: original.category,
       },
       ip: req.headers.get("x-forwarded-for") || undefined,

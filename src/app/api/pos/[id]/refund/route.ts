@@ -8,6 +8,16 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   const { id } = await params
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+
+  const role = session.user.role
+  const unitId = session.user.unitId
+  const tenantId = session.user.tenantId
+  const enabled = (session.user as { retailModuleEnabled?: boolean }).retailModuleEnabled === true
+
+  if (!canUseRetail(role, unitId, enabled)) {
+    return NextResponse.json({ error: "Retail module disabled" }, { status: 403 })
+  }
+
   const saleId = Number(id)
   const sale = await prisma.posSale.findUnique({
     where: { id: saleId },
@@ -16,6 +26,11 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 
   if (!sale) {
     return NextResponse.json({ error: "Transaksi tidak ditemukan" }, { status: 404 })
+  }
+
+  // Check tenant access
+  if (tenantId && sale.tenantId !== tenantId) {
+    return NextResponse.json({ error: "Access denied" }, { status: 403 })
   }
 
   if (sale.status === "Refunded") {
@@ -44,7 +59,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   // Create refund record
   const refund = await prisma.posSale.create({
     data: {
-      unitName: sale.unitName,
+      tenantId: sale.tenantId,
+      unitId: sale.unitId,
       paymentMethod: sale.paymentMethod,
       totalAmount: -refundTotal,
       status: "Refunded",
@@ -91,6 +107,18 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 
 export async function DELETE(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
+  const session = await getServerSession(authOptions)
+  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+
+  const role = session.user.role
+  const unitId = session.user.unitId
+  const tenantId = session.user.tenantId
+  const enabled = (session.user as { retailModuleEnabled?: boolean }).retailModuleEnabled === true
+
+  if (!canUseRetail(role, unitId, enabled)) {
+    return NextResponse.json({ error: "Retail module disabled" }, { status: 403 })
+  }
+
   const saleId = Number(id)
   const sale = await prisma.posSale.findUnique({
     where: { id: saleId },
@@ -99,6 +127,11 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ id: s
 
   if (!sale) {
     return NextResponse.json({ error: "Transaksi tidak ditemukan" }, { status: 404 })
+  }
+
+  // Check tenant access
+  if (tenantId && sale.tenantId !== tenantId) {
+    return NextResponse.json({ error: "Access denied" }, { status: 403 })
   }
 
   if (sale.status === "Void") {

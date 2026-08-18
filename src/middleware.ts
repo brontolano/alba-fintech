@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { getToken } from 'next-auth/jwt'
-import { isRole, isUnit, canUseRetail } from '@/lib/enums'
+import { isRole, canUseRetail } from '@/lib/enums'
 
 export async function middleware(request: NextRequest) {
   const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET })
@@ -23,17 +23,17 @@ export async function middleware(request: NextRequest) {
   }
 
   const role = token.role as string
-  const unit = token.unit as string
+  const unitId = token.unitId as number | null
   const retailEnabled = (token as { retailModuleEnabled?: boolean })?.retailModuleEnabled === true
 
   // Role guard
-  if (!isRole(role) || !isUnit(unit)) {
+  if (!isRole(role) || !unitId) {
     return NextResponse.redirect(new URL('/login', request.url))
   }
 
   // Retail module guard
   const retailPath = pathname.startsWith('/pos') || pathname.startsWith('/inventory')
-  if (retailPath && !canUseRetail(role, unit, retailEnabled)) {
+  if (retailPath && !canUseRetail(role, unitId, retailEnabled)) {
     return NextResponse.redirect(new URL('/dashboard', request.url))
   }
 

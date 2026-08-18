@@ -16,9 +16,9 @@ export async function GET() {
       name: true,
       email: true,
       role: true,
-      unit: true,
-      unitType: true,
-      retailModuleEnabled: true,
+      tenantId: true,
+      unitId: true,
+      unit: { select: { id: true, name: true, type: true } },
       image: true,
       createdAt: true,
     },
@@ -63,9 +63,9 @@ export async function PUT(req: Request) {
           name: true,
           email: true,
           role: true,
-          unit: true,
-          unitType: true,
-          retailModuleEnabled: true,
+          tenantId: true,
+          unitId: true,
+          unit: { select: { id: true, name: true, type: true } },
           image: true,
           createdAt: true,
         },
@@ -78,24 +78,22 @@ export async function PUT(req: Request) {
     }
 
     const body = await req.json()
-    const { name, image, unitType, retailModuleEnabled } = body
+    const { name, image } = body
 
     const updated = await prisma.user.update({
       where: { id: Number(session.user.id) },
       data: {
         ...(name ? { name } : {}),
         ...(image !== undefined ? { image } : {}),
-        ...(unitType ? { unitType } : {}),
-        ...(retailModuleEnabled !== undefined ? { retailModuleEnabled: Boolean(retailModuleEnabled) } : {}),
       },
       select: {
         id: true,
         name: true,
         email: true,
         role: true,
-        unit: true,
-        unitType: true,
-        retailModuleEnabled: true,
+        tenantId: true,
+        unitId: true,
+        unit: { select: { id: true, name: true, type: true } },
         image: true,
         createdAt: true,
       },

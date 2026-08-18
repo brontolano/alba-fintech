@@ -8,10 +8,10 @@ import { useSession } from 'next-auth/react'
 export function RetailShortcuts() {
   const { data: session } = useSession()
   const role = session?.user?.role || ''
-  const unit = session?.user?.unit || ''
+  const unitId = session?.user?.unitId || null
   const enabled = (session?.user as { retailModuleEnabled?: boolean } | undefined)?.retailModuleEnabled === true
 
-  if (!canUseRetail(role, unit, enabled)) return null
+  if (!canUseRetail(role, unitId, enabled)) return null
 
   return (
     <div className="grid grid-cols-2 gap-4">

@@ -16,7 +16,7 @@ type InventoryItem = {
   unit: string
   stock: number
   minStock: number
-  unitName: string
+  unitId: number
 }
 
 type CartItem = InventoryItem & { quantity: number }
@@ -26,7 +26,7 @@ export default function PosPage() {
   const router = useRouter()
   const enabled = (session?.user as { retailModuleEnabled?: boolean } | undefined)?.retailModuleEnabled === true
   const role = session?.user?.role || ''
-  const userUnit = session?.user?.unit || ''
+  const userUnitId = session?.user?.unitId || null
 
   const [items, setItems] = useState<InventoryItem[]>([])
   const [cart, setCart] = useState<CartItem[]>([])
@@ -49,7 +49,7 @@ export default function PosPage() {
       router.replace('/login')
       return
     }
-    if (!canUseRetail(role, userUnit, enabled)) {
+    if (!canUseRetail(role, userUnitId, enabled)) {
       router.replace('/dashboard')
       return
     }
@@ -67,7 +67,7 @@ export default function PosPage() {
     return () => {
       ignore = true
     }
-  }, [session, role, enabled, userUnit, router])
+  }, [session, role, enabled, userUnitId, router])
 
   const addToCart = (item: InventoryItem) => {
     if (item.stock <= 0) {
@@ -118,7 +118,7 @@ export default function PosPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          unitName: session?.user?.unit,
+          unitId: userUnitId,
           paymentMethod: 'Tunai',
           items: cart.map((c) => ({
             inventoryId: c.id,
@@ -143,7 +143,7 @@ export default function PosPage() {
     }
   }
 
-  if (!session || !canUseRetail(role, userUnit, enabled)) return null
+  if (!session || !canUseRetail(role, userUnitId, enabled)) return null
 
   const filtered = items.filter((i) => i.name.toLowerCase().includes(search.toLowerCase()) || (i.sku || '').toLowerCase().includes(search.toLowerCase()))
   const lowStock = items.filter((i) => i.stock <= i.minStock)

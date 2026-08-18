@@ -5,7 +5,9 @@ declare module "next-auth" {
     user: {
       id: string
       role: string
-      unit: string
+      tenantId: number | null
+      unitId: number | null
+      unit?: string
       unitType?: string
       retailModuleEnabled?: boolean
       image?: string | null
@@ -15,7 +17,9 @@ declare module "next-auth" {
   interface User {
     id: string
     role: string
-    unit: string
+    tenantId: number | null
+    unitId: number | null
+    unit?: string
     unitType?: string
     retailModuleEnabled?: boolean
     image?: string | null
@@ -26,7 +30,9 @@ declare module "next-auth/jwt" {
   interface JWT {
     id: string
     role: string
-    unit: string
+    tenantId: number | null
+    unitId: number | null
+    unit?: string
     unitType?: string
     retailModuleEnabled?: boolean
     image?: string | null

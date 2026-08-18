@@ -4,16 +4,20 @@ import { authOptions } from "@/app/api/auth/[...nextauth]/route"
 import { prisma } from "@/lib/prisma"
 import { canUseRetail } from "@/lib/enums"
 
-export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function POST(
+  req: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
   const { id } = await params
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
   const role = session.user.role
-  const unit = session.user.unit
+  const unitId = session.user.unitId
+  const tenantId = session.user.tenantId
   const enabled = (session.user as { retailModuleEnabled?: boolean }).retailModuleEnabled === true
 
-  if (!canUseRetail(role, unit, enabled)) {
+  if (!canUseRetail(role, unitId, enabled)) {
     return NextResponse.json({ error: "Retail module disabled" }, { status: 403 })
   }
 
@@ -29,6 +33,11 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 
   if (shift.status === "Closed") {
     return NextResponse.json({ error: "Shift sudah ditutup" }, { status: 400 })
+  }
+
+  // Check tenant access
+  if (tenantId && shift.tenantId !== tenantId) {
+    return NextResponse.json({ error: "Access denied" }, { status: 403 })
   }
 
   const body = (await req.json()) as { closingCash?: number; note?: string }
@@ -65,15 +74,19 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   })
 }
 
-export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function GET(
+  req: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
   const role = session.user.role
-  const unit = session.user.unit
+  const unitId = session.user.unitId
+  const tenantId = session.user.tenantId
   const enabled = (session.user as { retailModuleEnabled?: boolean }).retailModuleEnabled === true
 
-  if (!canUseRetail(role, unit, enabled)) {
+  if (!canUseRetail(role, unitId, enabled)) {
     return NextResponse.json({ error: "Retail module disabled" }, { status: 403 })
   }
 
@@ -91,6 +104,11 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
 
   if (!shift) {
     return NextResponse.json({ error: "Shift tidak ditemukan" }, { status: 404 })
+  }
+
+  // Check tenant access
+  if (tenantId && shift.tenantId !== tenantId) {
+    return NextResponse.json({ error: "Access denied" }, { status: 403 })
   }
 
   return NextResponse.json({

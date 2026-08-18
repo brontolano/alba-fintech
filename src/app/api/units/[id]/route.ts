@@ -7,7 +7,7 @@ import { isUnitType } from "@/lib/enums"
 type UpdateUnitBody = {
   name?: string
   type?: "Sederhana" | "Retail"
-  retailModuleEnabled?: boolean
+  retailEnabled?: boolean
   description?: string | null
 }
 
@@ -28,7 +28,7 @@ export async function PATCH(
   }
 
   const body = (await req.json()) as UpdateUnitBody
-  const { name, type, retailModuleEnabled, description } = body
+  const { name, type, retailEnabled, description } = body
 
   const target = await prisma.unit.findUnique({ where: { id: unitId } })
   if (!target) {
@@ -40,9 +40,12 @@ export async function PATCH(
   }
 
   if (name && name !== target.name) {
-    const exists = await prisma.unit.findUnique({ where: { name } })
+    // Check unique per tenant
+    const exists = await prisma.unit.findUnique({
+      where: { tenantId_name: { tenantId: target.tenantId, name } }
+    })
     if (exists) {
-      return NextResponse.json({ error: "Nama unit sudah digunakan" }, { status: 409 })
+      return NextResponse.json({ error: "Nama unit sudah digunakan di tenant ini" }, { status: 409 })
     }
   }
 
@@ -50,7 +53,7 @@ export async function PATCH(
   const data: Record<string, unknown> = {
     name: name || target.name,
     type: finalType,
-    retailModuleEnabled: retailModuleEnabled ?? (finalType === "Retail"),
+    retailEnabled: retailEnabled ?? (finalType === "Retail"),
   }
   if (description !== undefined) data.description = description
 
@@ -61,7 +64,7 @@ export async function PATCH(
       id: true,
       name: true,
       type: true,
-      retailModuleEnabled: true,
+      retailEnabled: true,
       description: true,
       createdAt: true,
       updatedAt: true,
@@ -97,7 +100,7 @@ export async function DELETE(
   }
 
   // Block deletion if there are users still attached to this unit
-  const userCount = await prisma.user.count({ where: { unit: target.name } })
+  const userCount = await prisma.user.count({ where: { unitId: target.id } })
   if (userCount > 0) {
     return NextResponse.json(
       { error: `Tidak bisa hapus: ${userCount} user masih terikat ke unit ${target.name}` },

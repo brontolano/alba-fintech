@@ -8,13 +8,18 @@ export async function GET(req: Request) {
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
   const role = session.user.role
-  const unit = session.user.unit
+  const unitId = session.user.unitId
+  const tenantId = session.user.tenantId
   const url = new URL(req.url)
   const supplierId = url.searchParams.get("supplierId")
 
-  const where = role === "Pimpinan" ? {} : { unitName: unit }
+  const where: any = {}
+  if (tenantId) where.tenantId = tenantId
+  if (role !== "Pimpinan" && role !== "Superadmin" && unitId) {
+    where.unitId = unitId
+  }
   if (supplierId) {
-    ;(where as Record<string, unknown>).supplierId = Number(supplierId)
+    where.supplierId = Number(supplierId)
   }
 
   const orders = await prisma.purchaseOrder.findMany({
@@ -45,15 +50,20 @@ export async function POST(req: Request) {
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
   const role = session.user.role
-  const unit = session.user.unit
+  const unitId = session.user.unitId
+  const tenantId = session.user.tenantId
   const body = (await req.json()) as {
     supplierId: number
-    unitName?: string
+    unitId?: number
     items: Array<{ inventoryId: number; quantity: number; unitPrice: number }>
     notes?: string
   }
 
-  const unitName = role === "Pimpinan" ? body.unitName || unit : unit
+  const targetUnitId = role === "Pimpinan" ? (body.unitId || unitId) : unitId
+
+  if (!tenantId || !targetUnitId) {
+    return NextResponse.json({ error: "tenantId & unitId required" }, { status: 400 })
+  }
 
   const supplier = await prisma.supplier.findUnique({
     where: { id: body.supplierId },
@@ -73,8 +83,9 @@ export async function POST(req: Request) {
 
   const order = await prisma.purchaseOrder.create({
     data: {
+      tenantId,
+      unitId: targetUnitId,
       supplierId: body.supplierId,
-      unitName,
       totalAmount,
       notes: body.notes || null,
       createdById: Number(session.user.id),

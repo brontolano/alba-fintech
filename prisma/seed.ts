@@ -1,56 +1,116 @@
-import { PrismaClient } from '@prisma/client'
-import bcrypt from 'bcryptjs'
+import { PrismaClient } from "@prisma/client"
+import bcrypt from "bcryptjs"
 
 const prisma = new PrismaClient()
 
 async function main() {
-  // Seed SystemConfig
-  const config = await prisma.systemConfig.upsert({
-    where: { id: 1 },
+  console.log("Seeding multi-tenant database...")
+
+  // Create default Tenant
+  const tenant = await prisma.tenant.upsert({
+    where: { subdomain: "demo" },
     update: {},
     create: {
-      id: 1,
-      appName: 'ALBA Finance',
-      appLogo: null,
-      updatedAt: new Date(),
+      name: "Pesantren Al-Bayan",
+      subdomain: "demo",
+      appName: "ALBA Finance",
+      logo: null,
+      primaryColor: "#022448",
+      secondaryColor: "#10B981",
     },
   })
-  console.log('SystemConfig seeded:', config)
 
-  // Seed default categories per unit
-  const units = ['Kantor', 'Kantin', 'Koperasi']
-  for (const unit of units) {
-    await prisma.category.upsert({
-      where: { id: unit === 'Kantor' ? 1 : unit === 'Kantin' ? 2 : 3 },
-      update: {},
-      create: {
-        name: unit === 'Kantor' ? 'Operasional Kantor' : unit === 'Kantin' ? 'Penjualan Kantin' : 'Koperasi',
-        type: 'Debit',
-        unit,
-      },
-    })
-  }
-  console.log('Categories seeded')
+  // Create Units
+  const unitKantor = await prisma.unit.upsert({
+    where: { tenantId_name: { tenantId: tenant.id, name: "Kantor" } },
+    update: {},
+    create: {
+      tenantId: tenant.id,
+      name: "Kantor",
+      type: "Sederhana",
+      retailEnabled: false,
+    },
+  })
 
-  // Seed default Superadmin user
-  const exists = await prisma.user.findFirst()
-  if (!exists) {
-    const hash = await bcrypt.hash('bismillah', 10)
-    const superadmin = await prisma.user.create({
-      data: {
-        email: 'admin@brontolano.com',
-        passwordHash: hash,
-        name: 'Superadmin',
-        role: 'Superadmin',
-        unit: 'All',
-        unitType: 'Sederhana',
-        retailModuleEnabled: false,
-      },
-    })
-    console.log('Superadmin seeded:', superadmin.email)
-  } else {
-    console.log('Users already exist, skip seeding')
-  }
+  const unitKantin = await prisma.unit.upsert({
+    where: { tenantId_name: { tenantId: tenant.id, name: "Kantin" } },
+    update: {},
+    create: {
+      tenantId: tenant.id,
+      name: "Kantin",
+      type: "Retail",
+      retailEnabled: true,
+    },
+  })
+
+  const unitKoperasi = await prisma.unit.upsert({
+    where: { tenantId_name: { tenantId: tenant.id, name: "Koperasi" } },
+    update: {},
+    create: {
+      tenantId: tenant.id,
+      name: "Koperasi",
+      type: "Retail",
+      retailEnabled: true,
+    },
+  })
+
+  const passwordHash = await bcrypt.hash("bismillah", 10)
+
+  // Create Superadmin
+  await prisma.user.upsert({
+    where: { email: "admin@brontolano" },
+    update: {},
+    create: {
+      tenantId: tenant.id,
+      name: "Super Admin",
+      email: "admin@brontolano",
+      passwordHash,
+      role: "Superadmin",
+    },
+  })
+
+  // Create Pimpinan
+  await prisma.user.upsert({
+    where: { email: "pimpinan@alba.com" },
+    update: {},
+    create: {
+      tenantId: tenant.id,
+      name: "Pimpinan Pesantren",
+      email: "pimpinan@alba.com",
+      passwordHash,
+      role: "Pimpinan",
+    },
+  })
+
+  // Create Manager Kantin
+  await prisma.user.upsert({
+    where: { email: "manager@kantin.com" },
+    update: {},
+    create: {
+      tenantId: tenant.id,
+      unitId: unitKantin.id,
+      name: "Manager Kantin",
+      email: "manager@kantin.com",
+      passwordHash,
+      role: "Manager",
+    },
+  })
+
+  // Create Staff
+  await prisma.user.upsert({
+    where: { email: "staff@kantin.com" },
+    update: {},
+    create: {
+      tenantId: tenant.id,
+      unitId: unitKantin.id,
+      name: "Staff Kantin",
+      email: "staff@kantin.com",
+      passwordHash,
+      role: "Staff",
+    },
+  })
+
+  console.log("Seeding completed successfully.")
 }
 
 main()

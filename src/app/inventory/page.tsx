@@ -1,11 +1,11 @@
 'use client'
-import { fileToCompressedDataUrl } from '@/lib/image-compress'
 
 import { useEffect, useRef, useState } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { canUseRetail } from '@/lib/enums'
 import { Search, Plus, AlertTriangle, Camera, ArrowDownToLine, ArrowUpFromLine, ClipboardList } from 'lucide-react'
+import { fileToCompressedDataUrl } from '@/lib/image-compress'
 
 type InventoryItem = {
   id: number
@@ -18,7 +18,7 @@ type InventoryItem = {
   unit: string
   stock: number
   minStock: number
-  unitName: string
+  unitId: number
 }
 
 export default function InventoryPage() {
@@ -26,7 +26,7 @@ export default function InventoryPage() {
   const router = useRouter()
   const enabled = (session?.user as { retailModuleEnabled?: boolean } | undefined)?.retailModuleEnabled === true
   const role = session?.user?.role || ''
-  const userUnit = session?.user?.unit || ''
+  const userUnitId = session?.user?.unitId || null
 
   const [items, setItems] = useState<InventoryItem[]>([])
   const [search, setSearch] = useState('')
@@ -44,7 +44,7 @@ export default function InventoryPage() {
     unit: 'pcs',
     stock: '0',
     minStock: '0',
-    unitName: typeof window !== 'undefined' ? (session?.user?.unit || 'Kantin') : 'Kantin',
+    unitId: userUnitId || 0,
   })
 
   const fileRef = useRef<HTMLInputElement>(null)
@@ -91,7 +91,7 @@ export default function InventoryPage() {
       router.replace('/login')
       return
     }
-    if (!canUseRetail(role, userUnit, enabled)) {
+    if (!canUseRetail(role, userUnitId, enabled)) {
       router.replace('/dashboard')
       return
     }
@@ -106,7 +106,7 @@ export default function InventoryPage() {
     return () => {
       ignore = true
     }
-  }, [session, role, enabled, userUnit, router])
+  }, [session, role, enabled, userUnitId, router])
 
   const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -148,7 +148,7 @@ export default function InventoryPage() {
   }
 
   const submitOpname = async () => {
-    if (!selectedItem || opnameStock === '') return
+    if (!selectedItem || !opnameStock) return
     setActionLoading(true)
     setActionMessage(null)
     try {
@@ -158,12 +158,12 @@ export default function InventoryPage() {
         body: JSON.stringify({ inventoryId: selectedItem.id, physicalStock: Number(opnameStock), note: opnameNote }),
       })
       if (res.ok) {
-        const data = await res.json()
-        setActionMessage({ type: 'success', text: `Opname berhasil. Selisih: ${data.difference > 0 ? '+' : ''}${data.difference}` })
+        setActionMessage({ type: 'success', text: 'Opname stok berhasil' })
         setOpnameStock('')
         setOpnameNote('')
         setShowOpname(false)
         fetchOpnames(selectedItem.id)
+        fetchItems()
       } else {
         const err = await res.json()
         setActionMessage({ type: 'error', text: err.error || 'Gagal' })
@@ -182,34 +182,39 @@ export default function InventoryPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          ...form,
+          name: form.name,
+          sku: form.sku || null,
+          category: form.category || null,
           imageUrl: form.imageUrl || null,
-          buyPrice: form.buyPrice || null,
+          buyPrice: form.buyPrice ? Number(form.buyPrice) : null,
           sellPrice: Number(form.sellPrice),
-          stock: Number(form.stock),
-          minStock: Number(form.minStock),
+          unit: form.unit,
+          stock: Number(form.stock) || 0,
+          minStock: Number(form.minStock) || 0,
+          unitId: Number(form.unitId),
         }),
       })
       if (res.ok) {
         setMessage({ type: 'success', text: 'Produk berhasil disimpan' })
-        setForm({ name: '', sku: '', category: '', imageUrl: '', buyPrice: '', sellPrice: '', unit: 'pcs', stock: '0', minStock: '0', unitName: session?.user?.unit || 'Kantin' })
+        setForm({ name: '', sku: '', category: '', imageUrl: '', buyPrice: '', sellPrice: '', unit: 'pcs', stock: '0', minStock: '0', unitId: userUnitId || 0 })
         setPreviewUrl(null)
-        if (fileRef.current) fileRef.current.value = ''
         setShowForm(false)
         fetchItems()
       } else {
         const err = await res.json()
-        setMessage({ type: 'error', text: err.error || 'Gagal menyimpan' })
+        setMessage({ type: 'error', text: err.error || 'Gagal simpan' })
       }
+    } catch {
+      setMessage({ type: 'error', text: 'Error jaringan' })
     } finally {
       setSaving(false)
     }
   }
 
-  if (!session || !canUseRetail(role, userUnit, enabled)) return null
-
   const filtered = items.filter((i) => i.name.toLowerCase().includes(search.toLowerCase()) || (i.sku || '').toLowerCase().includes(search.toLowerCase()))
   const lowStock = items.filter((i) => i.stock <= i.minStock)
+
+  if (!session || !canUseRetail(role, userUnitId, enabled)) return null
 
   return (
     <div className="min-h-screen bg-[#faf9fc] text-[#1a1c1e] font-body">
@@ -218,19 +223,19 @@ export default function InventoryPage() {
           <h1 className="text-2xl font-bold text-[#022448]">Inventori</h1>
           <button onClick={() => setShowForm((v) => !v)} className="flex items-center gap-2 bg-[#022448] text-white px-4 py-2 rounded-full text-sm font-semibold">
             <Plus className="w-4 h-4" /> Tambah
-         </button>
-       </div>
+          </button>
+        </div>
 
         {lowStock.length > 0 && (
           <div className="mb-4 p-3 rounded-xl bg-amber-50 border border-amber-200 text-sm text-amber-800 flex items-center gap-2">
             <AlertTriangle className="w-4 h-4" /> {lowStock.length} produk stok kritis
-         </div>
+          </div>
         )}
 
         {message && (
           <div className={`mb-4 p-3 rounded-xl text-sm font-medium ${message.type === 'success' ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}`}>
             {message.text}
-         </div>
+          </div>
         )}
 
         {showForm && (
@@ -256,18 +261,18 @@ export default function InventoryPage() {
                 className="flex items-center gap-2 bg-[#f4f3f7] px-4 py-3 rounded-2xl text-sm font-semibold text-[#022448]"
               >
                 <Camera className="w-4 h-4" /> {previewUrl ? 'Ganti Gambar' : 'Upload Gambar'}
-             </button>
+              </button>
               {previewUrl && (
                 <img src={previewUrl} alt="preview" className="w-14 h-14 rounded-xl object-cover border border-[#eeedf1]" />
               )}
-           </div>
+            </div>
 
             <div className="grid grid-cols-2 gap-3">
               <input value={form.buyPrice} onChange={(e) => setForm({ ...form, buyPrice: e.target.value })} placeholder="Harga beli" type="number" className="bg-[#f4f3f7] rounded-2xl px-4 py-3" />
               <p className="text-[11px] text-[#43474e] col-span-2">Harga pembelian per unit</p>
               <input value={form.sellPrice} onChange={(e) => setForm({ ...form, sellPrice: e.target.value })} placeholder="Harga jual" type="number" required className="bg-[#f4f3f7] rounded-2xl px-4 py-3" />
               <p className="text-[11px] text-[#43474e] col-span-2">Harga penjualan per unit</p>
-           </div>
+            </div>
             <div className="grid grid-cols-3 gap-3">
               <input value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value })} placeholder="Satuan" className="bg-[#f4f3f7] rounded-2xl px-4 py-3" />
               <p className="text-[11px] text-[#43474e] col-span-3">Satuan: pcs, box, pack, dll</p>
@@ -275,17 +280,17 @@ export default function InventoryPage() {
               <p className="text-[11px] text-[#43474e] col-span-3">Jumlah stok awal saat ini</p>
               <input value={form.minStock} onChange={(e) => setForm({ ...form, minStock: e.target.value })} placeholder="Min stok" type="number" className="bg-[#f4f3f7] rounded-2xl px-4 py-3" />
               <p className="text-[11px] text-[#43474e] col-span-3">Batas minimum sebelum masuk status stok kritis</p>
-           </div>
+            </div>
             <button type="submit" disabled={saving} className="w-full bg-[#022448] text-white py-3 rounded-2xl font-semibold disabled:opacity-50">
               {saving ? 'Menyimpan...' : 'Simpan Produk'}
-           </button>
-         </form>
+            </button>
+          </form>
         )}
 
         <div className="relative mb-4">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[#43474e] w-5 h-5" />
           <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Cari produk..." className="w-full bg-white border border-[#e3e2e6] rounded-2xl pl-10 pr-4 py-3" />
-       </div>
+        </div>
 
         <div className="space-y-3">
           {filtered.map((item) => (
@@ -295,21 +300,21 @@ export default function InventoryPage() {
               ) : (
                 <div className="w-14 h-14 rounded-xl bg-[#f4f3f7] flex items-center justify-center flex-shrink-0 text-[#022448] text-xs font-bold">
                   {item.name.slice(0, 2).toUpperCase()}
-               </div>
+                </div>
               )}
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-bold text-[#1a1c1e] truncate">{item.name}</p>
                 <p className="text-xs text-[#43474e] truncate">{item.category || '-'} • {item.sku || 'No SKU'}</p>
                 <p className="text-xs text-[#43474e]">Stok: {item.stock} {item.unit} • Min: {item.minStock}</p>
-            </div>
+              </div>
               <div className="text-right flex-shrink-0">
                 <p className="text-sm font-mono font-bold text-[#022448]">Rp {item.sellPrice.toLocaleString('id-ID')}</p>
                 {item.stock <= item.minStock && <span className="text-[10px] font-bold text-rose-600 bg-rose-100 px-2 py-0.5 rounded-full flex items-center gap-1"><AlertTriangle className="w-3 h-3" />Low</span>}
-             </div>
-           </div>
+              </div>
+            </div>
           ))}
-       </div>
-     </main>
-   </div>
+        </div>
+      </main>
+    </div>
   )
 }

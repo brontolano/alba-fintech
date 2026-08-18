@@ -2,7 +2,7 @@ import { NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/app/api/auth/[...nextauth]/route"
 import { prisma } from "@/lib/prisma"
-import { isUnit, canUseRetail } from "@/lib/enums"
+import { canUseRetail } from "@/lib/enums"
 
 type InventoryBody = {
   name: string
@@ -14,7 +14,7 @@ type InventoryBody = {
   unit?: string
   stock?: number
   minStock?: number
-  unitName: string
+  unitId: number
 }
 
 export async function GET() {
@@ -22,18 +22,28 @@ export async function GET() {
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
   const role = session.user.role
-  const unit = session.user.unit
+  const unitId = session.user.unitId
+  const tenantId = session.user.tenantId
   const enabled = (session.user as { retailModuleEnabled?: boolean }).retailModuleEnabled === true
 
-  if (!canUseRetail(role, unit, enabled)) {
+  if (!canUseRetail(role, unitId, enabled)) {
     return NextResponse.json({ error: "Retail module disabled" }, { status: 403 })
   }
 
-  const where = role === "Pimpinan" ? {} : { unitName: unit }
+  const where: any = {}
+  if (tenantId) where.tenantId = tenantId
+  if (role !== "Pimpinan" && role !== "Superadmin" && unitId) {
+    where.unitId = unitId
+  }
+
   const items = await prisma.inventoryItem.findMany({
     where,
     orderBy: { name: "asc" },
-    select: { id: true, name: true, sku: true, category: true, imageUrl: true, buyPrice: true, sellPrice: true, unit: true, stock: true, minStock: true, unitName: true },
+    select: {
+      id: true, name: true, sku: true, category: true, imageUrl: true,
+      buyPrice: true, sellPrice: true, unitOfMeasure: true, stock: true, minStock: true,
+      unitId: true
+    },
   })
 
   return NextResponse.json(items.map((i) => ({
@@ -48,21 +58,23 @@ export async function POST(req: Request) {
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
   const role = session.user.role
-  const unit = session.user.unit
+  const unitId = session.user.unitId
+  const tenantId = session.user.tenantId
   const enabled = (session.user as { retailModuleEnabled?: boolean }).retailModuleEnabled === true
 
-  if (!canUseRetail(role, unit, enabled)) {
+  if (!canUseRetail(role, unitId, enabled)) {
     return NextResponse.json({ error: "Retail module disabled" }, { status: 403 })
   }
 
   const body = (await req.json()) as InventoryBody
-  const { name, sku, category, imageUrl, buyPrice, sellPrice, unit: itemUnit, stock, minStock, unitName } = body
+  const { name, sku, category, imageUrl, buyPrice, sellPrice, unit, stock, minStock, unitId: targetUnitId } = body
 
-  if (!name || sellPrice == null || !unitName) {
+  if (!name || sellPrice == null || !targetUnitId) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
   }
-  if (!isUnit(unitName)) {
-    return NextResponse.json({ error: "Invalid unitName" }, { status: 400 })
+
+  if (!tenantId) {
+    return NextResponse.json({ error: "tenantId required" }, { status: 400 })
   }
 
   const created = await prisma.inventoryItem.create({
@@ -73,10 +85,11 @@ export async function POST(req: Request) {
       imageUrl: imageUrl || null,
       buyPrice: buyPrice != null ? Number(buyPrice) : null,
       sellPrice: Number(sellPrice),
-      unit: itemUnit || "pcs",
+      unitOfMeasure: unit || "pcs",
       stock: Number(stock) || 0,
       minStock: Number(minStock) || 0,
-      unitName,
+      unitId: Number(targetUnitId),
+      tenantId,
       createdById: Number(session.user.id),
     },
   })

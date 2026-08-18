@@ -7,45 +7,53 @@ import { prisma } from "@/lib/prisma"
 import { RetailShortcuts } from "@/components/RetailShortcuts"
 
 function formatRupiah(n: number): string {
-  return `Rp ${n.toLocaleString('id-ID')}`
+  return `Rp ${n.toLocaleString("id-ID")}`
 }
 
 export default async function DashboardPage() {
   const session = await getServerSession(authOptions)
 
   if (!session) {
-    redirect('/login')
+    redirect("/login")
   }
 
   const { user } = session
 
   // Redirect based on role
-  if (user.role === 'Superadmin') {
-      // Superadmin gets full control dashboard (separate from Pimpinan module)
-      redirect('/dashboard/superadmin')
-    } else if (user.role === 'Manager') {
-      redirect('/dashboard/manager')
-    } else if (user.role === 'Staff') {
-      redirect('/dashboard/staff')
-    }
+  if (user.role === "Superadmin") {
+    redirect("/dashboard/superadmin")
+  } else if (user.role === "Manager") {
+    redirect("/dashboard/manager")
+  } else if (user.role === "Staff") {
+    redirect("/dashboard/staff")
+  }
 
-  // Pimpinan Executive Dashboard
+  // Pimpinan Executive Dashboard - scoped to tenant
+  const where: any = {}
+  if (user.tenantId) where.tenantId = user.tenantId
+
   const transactions = await prisma.transaction.findMany({
-    where: { status: "Approved" },
+    where: { ...where, status: "Approved" },
+    include: { unit: { select: { id: true, name: true } } },
   })
 
-  const units = ["Kantor", "Kantin", "Koperasi"]
+  // Group by unit dynamically
+  const units = await prisma.unit.findMany({
+    where: { tenantId: user.tenantId || 1 },
+    select: { id: true, name: true },
+  })
+
   const byUnit: Record<string, { debit: number; kredit: number; balance: number }> = {}
   for (const u of units) {
     let debit = 0
     let kredit = 0
     for (const t of transactions) {
-      if (t.unit !== u) continue
+      if (t.unitId !== u.id) continue
       const amt = Number(t.amount)
       if (t.type === "Debit") debit += amt
       else kredit += amt
     }
-    byUnit[u] = { debit, kredit, balance: debit - kredit }
+    byUnit[u.name] = { debit, kredit, balance: debit - kredit }
   }
 
   const totalDebit = transactions
@@ -56,15 +64,23 @@ export default async function DashboardPage() {
     .reduce((acc, t) => acc + Number(t.amount), 0)
   const totalBalance = totalDebit - totalKredit
 
-  const pendingCount = await prisma.transaction.count({ where: { status: "Pending" } })
-
-  const recentTransactions = await prisma.transaction.findMany({
-    orderBy: { transactionDate: "desc" },
-    take: 5,
+  const pendingCount = await prisma.transaction.count({
+    where: { ...where, status: "Pending" }
   })
 
-  const approvedTx = await prisma.transaction.count({ where: { status: "Approved" } })
-  const rejectedTx = await prisma.transaction.count({ where: { status: "Rejected" } })
+  const recentTransactions = await prisma.transaction.findMany({
+    where,
+    orderBy: { transactionDate: "desc" },
+    take: 5,
+    include: { unit: { select: { name: true } } },
+  })
+
+  const approvedTx = await prisma.transaction.count({
+    where: { ...where, status: "Approved" }
+  })
+  const rejectedTx = await prisma.transaction.count({
+    where: { ...where, status: "Rejected" }
+  })
 
   return (
     <div className="min-h-screen bg-[#faf9fc] text-[#1a1c1e] pb-24 font-sans">
@@ -75,7 +91,7 @@ export default async function DashboardPage() {
             {user.image ? (
               <img src={user.image} alt="Profile" className="w-full h-full object-cover" />
             ) : (
-              <span>{(user.name || 'AL').charAt(0).toUpperCase()}</span>
+              <span>{(user.name || "AL").charAt(0).toUpperCase()}</span>
             )}
           </Link>
           <h1 className="text-xl font-bold text-[#022448]">ALBA Finance</h1>
@@ -115,122 +131,66 @@ export default async function DashboardPage() {
           <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -mr-16 -mt-16 pointer-events-none"></div>
         </section>
 
-        {/* Unit Keuangan (Grid 4 Unit) */}
+        {/* Unit Keuangan (Grid - Dynamic) */}
         <section className="flex flex-col gap-4">
           <h3 className="text-lg font-bold text-[#1a1c1e]">Unit Keuangan</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {/* Unit Kantor */}
-            <div className="bg-[#1e3a5f] p-5 rounded-2xl shadow-md flex flex-col gap-4 relative overflow-hidden text-white">
-              <div className="flex justify-between items-center relative z-10">
-                <span className="text-sm text-[#adc8f5] font-medium">Unit Kantor</span>
-                <span className="px-2.5 py-0.5 bg-emerald-500/20 text-emerald-300 text-xs rounded-lg font-semibold border border-emerald-500/30">SEHAT</span>
-              </div>
-              <div className="relative z-10">
-                <div className="absolute bottom-0 right-0 opacity-10 pointer-events-none">
-                  <Building2 className="w-24 h-24" />
-                </div>
-                <div className="font-mono text-2xl font-bold">{formatRupiah(byUnit["Kantor"]?.balance ?? 0)}</div>
-                <div className="grid grid-cols-2 gap-4 mt-4 border-t border-white/15 pt-3">
-                  <div>
-                    <span className="text-xs text-[#adc8f5]">Debit</span>
-                    <p className="font-mono text-xs text-emerald-400 font-bold">+ {formatRupiah(byUnit["Kantor"]?.debit ?? 0)}</p>
-                  </div>
-                  <div>
-                    <span className="text-xs text-[#adc8f5]">Kredit</span>
-                    <p className="font-mono text-xs text-rose-400 font-bold">- {formatRupiah(byUnit["Kantor"]?.kredit ?? 0)}</p>
-                  </div>
-                </div>
-              </div>
-              <Link href="/transactions?unit=Kantor" className="w-full py-2 rounded-xl bg-white/15 text-center text-xs font-medium hover:bg-white/25 transition-colors relative z-10">
-                Detail Unit
-              </Link>
-            </div>
+            {units.map((u, idx) => {
+              const colors = [
+                "bg-[#1e3a5f]",
+                "bg-[#16677a]",
+                "bg-[#503300]",
+                "bg-[#022448]",
+                "bg-[#7c2d12]",
+                "bg-[#14532d]",
+              ]
+              const icons = [Building2, Store, ShoppingBag, Building2, Store, ShoppingBag]
+              const bgColor = colors[idx % colors.length]
+              const Icon = icons[idx % icons.length]
+              const unitData = byUnit[u.name] || { debit: 0, kredit: 0, balance: 0 }
+              const textColors = [
+                { primary: "text-[#adc8f5]", secondary: "text-emerald-300", border: "border-emerald-500/30", link: "text-white" },
+                { primary: "text-[#b1ecff]", secondary: "text-emerald-300", border: "border-emerald-500/30", link: "text-white" },
+                { primary: "text-[#edbf7f]", secondary: "text-[#a2e7fd]", border: "border-[#a2e7fd]/30", link: "text-white" },
+                { primary: "text-[#adc8f5]", secondary: "text-emerald-300", border: "border-emerald-500/30", link: "text-white" },
+              ]
+              const tc = textColors[idx % textColors.length]
 
-            {/* Unit Kantin Umi */}
-            <div className="bg-[#16677a] p-5 rounded-2xl shadow-md flex flex-col gap-4 relative overflow-hidden text-white">
-              <div className="flex justify-between items-center relative z-10">
-                <span className="text-sm text-[#b1ecff] font-medium">Unit Kantin Umi</span>
-                <span className="px-2.5 py-0.5 bg-emerald-500/20 text-emerald-300 text-xs rounded-lg font-semibold border border-emerald-500/30">SEHAT</span>
-              </div>
-              <div className="relative z-10">
-                <div className="absolute bottom-0 right-0 opacity-10 pointer-events-none">
-                  <Store className="w-24 h-24" />
-                </div>
-                <div className="font-mono text-2xl font-bold">{formatRupiah(byUnit["Kantin"]?.balance ?? 0)}</div>
-                <div className="grid grid-cols-2 gap-4 mt-4 border-t border-white/15 pt-3">
-                  <div>
-                    <span className="text-xs text-[#b1ecff]">Debit</span>
-                    <p className="font-mono text-xs text-emerald-400 font-bold">+ {formatRupiah(byUnit["Kantin"]?.debit ?? 0)}</p>
+              return (
+                <div key={u.id} className={`${bgColor} p-5 rounded-2xl shadow-md flex flex-col gap-4 relative overflow-hidden text-white`}>
+                  <div className="flex justify-between items-center relative z-10">
+                    <span className="text-sm {tc.primary} font-medium">{u.name}</span>
+                    <span className={`px-2.5 py-0.5 ${tc.secondary} text-xs rounded-lg font-semibold ${tc.border}`}>
+                      SEHAT
+                    </span>
                   </div>
-                  <div>
-                    <span className="text-xs text-[#b1ecff]">Kredit</span>
-                    <p className="font-mono text-xs text-rose-400 font-bold">- {formatRupiah(byUnit["Kantin"]?.kredit ?? 0)}</p>
+                  <div className="relative z-10">
+                    <div className="absolute bottom-0 right-0 opacity-10 pointer-events-none">
+                      <Icon className="w-24 h-24" />
+                    </div>
+                    <div className="font-mono text-2xl font-bold">{formatRupiah(unitData.balance)}</div>
+                    <div className="grid grid-cols-2 gap-4 mt-4 border-t border-white/15 pt-3">
+                      <div>
+                        <span className="text-xs {tc.primary}">Debit</span>
+                        <p className="font-mono text-xs text-emerald-400 font-bold">+ {formatRupiah(unitData.debit)}</p>
+                      </div>
+                      <div>
+                        <span className="text-xs {tc.primary}">Kredit</span>
+                        <p className="font-mono text-xs text-rose-400 font-bold">- {formatRupiah(unitData.kredit)}</p>
+                      </div>
+                    </div>
                   </div>
+                  <Link href={`/transactions?unitId=${u.id}`} className="w-full py-2 rounded-xl bg-white/15 text-center text-xs font-medium hover:bg-white/25 transition-colors relative z-10">
+                    Detail Unit
+                  </Link>
                 </div>
-              </div>
-              <Link href="/transactions?unit=Kantin" className="w-full py-2 rounded-xl bg-white/15 text-center text-xs font-medium hover:bg-white/25 transition-colors relative z-10">
-                Detail Unit
-              </Link>
-            </div>
-
-            {/* Unit Kantin Baru */}
-            <div className="bg-[#503300] p-5 rounded-2xl shadow-md flex flex-col gap-4 relative overflow-hidden text-white">
-              <div className="flex justify-between items-center relative z-10">
-                <span className="text-sm text-[#edbf7f] font-medium">Unit Kantin Baru</span>
-                <span className="px-2.5 py-0.5 bg-[#a2e7fd]/20 text-[#a2e7fd] text-xs rounded-lg font-semibold border border-[#a2e7fd]/30">NORMAL</span>
-              </div>
-              <div className="relative z-10">
-                <div className="absolute bottom-0 right-0 opacity-10 pointer-events-none">
-                  <Store className="w-24 h-24" />
-                </div>
-                <div className="font-mono text-2xl font-bold">{formatRupiah(byUnit["Kantin"]?.balance ?? 0)}</div>
-                <div className="grid grid-cols-2 gap-4 mt-4 border-t border-white/15 pt-3">
-                  <div>
-                    <span className="text-xs text-[#edbf7f]">Debit</span>
-                    <p className="font-mono text-xs text-emerald-400 font-bold">+ {formatRupiah(byUnit["Kantin"]?.debit ?? 0)}</p>
-                  </div>
-                  <div>
-                    <span className="text-xs text-[#edbf7f]">Kredit</span>
-                    <p className="font-mono text-xs text-rose-400 font-bold">- {formatRupiah(byUnit["Kantin"]?.kredit ?? 0)}</p>
-                  </div>
-                </div>
-              </div>
-              <Link href="/transactions?unit=Kantin" className="w-full py-2 rounded-xl bg-white/15 text-center text-xs font-medium hover:bg-white/25 transition-colors relative z-10">
-                Detail Unit
-              </Link>
-            </div>
-
-            {/* Unit Koperasi Buku */}
-            <div className="bg-[#022448] p-5 rounded-2xl shadow-md flex flex-col gap-4 relative overflow-hidden text-white">
-              <div className="flex justify-between items-center relative z-10">
-                <span className="text-sm text-[#adc8f5] font-medium">Unit Koperasi Buku</span>
-                <span className="px-2.5 py-0.5 bg-emerald-500/20 text-emerald-300 text-xs rounded-lg font-semibold border border-emerald-500/30">SEHAT</span>
-              </div>
-              <div className="relative z-10">
-                <div className="absolute bottom-0 right-0 opacity-10 pointer-events-none">
-                  <ShoppingBag className="w-24 h-24" />
-                </div>
-                <div className="font-mono text-2xl font-bold">{formatRupiah(byUnit["Koperasi"]?.balance ?? 0)}</div>
-                <div className="grid grid-cols-2 gap-4 mt-4 border-t border-white/15 pt-3">
-                  <div>
-                    <span className="text-xs text-[#adc8f5]">Debit</span>
-                    <p className="font-mono text-xs text-emerald-400 font-bold">+ {formatRupiah(byUnit["Koperasi"]?.debit ?? 0)}</p>
-                  </div>
-                  <div>
-                    <span className="text-xs text-[#adc8f5]">Kredit</span>
-                    <p className="font-mono text-xs text-rose-400 font-bold">- {formatRupiah(byUnit["Koperasi"]?.kredit ?? 0)}</p>
-                  </div>
-                </div>
-              </div>
-              <Link href="/transactions?unit=Koperasi" className="w-full py-2 rounded-xl bg-white/15 text-center text-xs font-medium hover:bg-white/25 transition-colors relative z-10">
-                Detail Unit
-              </Link>
-            </div>
+              )
+            })}
           </div>
         </section>
 
         {/* Pending Approvals Widget */}
-        {(user.role === 'Manager' || user.role === 'Pimpinan') && (
+        {pendingCount > 0 && (
           <section className="bg-amber-50 border border-amber-200 rounded-2xl p-5 shadow-sm">
             <div className="flex justify-between items-center mb-3">
               <h3 className="text-sm font-bold text-amber-900">Menunggu Persetujuan</h3>
@@ -291,7 +251,7 @@ export default async function DashboardPage() {
                     <div>
                       <h4 className="text-sm font-bold text-slate-900">{t.category}</h4>
                       <p className="text-xs text-slate-500">
-                        {t.unit} • {new Date(t.transactionDate).toLocaleDateString("id-ID")}
+                        {t.unit?.name || "Unknown"} • {new Date(t.transactionDate).toLocaleDateString("id-ID")}
                       </p>
                     </div>
                   </div>
