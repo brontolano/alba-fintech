@@ -1,0 +1,21 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --primary: #1E3A5F;
+    --success: #10B981;
+    --danger: #EF4444;
+    --warning: #F59E0B;
+  }
+}
+
+body {
+  font-family: var(--font-inter), sans-serif;
+  background-color: #F8FAFC;
+  color: #0F172A;
+}
+
+.font-mono-num {
+  font-family: var(--font-jetbrains-mono), monospace;
+  font-variant-numeric: tabular-nums;
+}

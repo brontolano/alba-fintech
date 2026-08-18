@@ -1,0 +1,392 @@
+// ALBA Finance — White-Label Multi-Tenant Schema (MySQL / SQLite Compatible)
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model Tenant {
+  id              Int      @id @default(autoincrement())
+  name            String   @unique
+  appName         String
+  logo            String?
+  primaryColor    String   @default("#1E3A5F")
+  secondaryColor  String   @default("#10B981")
+  subdomain       String?  @unique
+  domain          String?
+  activeModules   String   @default("transactions,reconciliation,retail,ai,inventory")
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  users           User[]
+  units           Unit[]
+  transactions    Transaction[]
+  reconciliations Reconciliation[]
+  categories      Category[]
+  suppliers       Supplier[]
+  purchaseOrders  PurchaseOrder[]
+  inventoryItems  InventoryItem[]
+  posSales        PosSale[]
+  cashierShifts   CashierShift[]
+  auditLogs       AuditLog[]
+  notifications   Notification[]
+  staffRequests   StaffRequest[]
+}
+
+model User {
+  id                  Int       @id @default(autoincrement())
+  tenantId            Int?
+  email               String    @unique
+  passwordHash        String
+  name                String
+  image               String?
+  role                String    // Superadmin, Pimpinan, Manager, Staff
+  unitId              Int?
+  isActive            Boolean   @default(true)
+  createdAt           DateTime  @default(now())
+
+  tenant              Tenant?       @relation(fields: [tenantId], references: [id])
+  unit                Unit?         @relation(fields: [unitId], references: [id])
+
+  transactions        Transaction[]   @relation("UserTransactions")
+  approvedTrans       Transaction[]   @relation("ApprovedTransactions")
+  approvals           Approval[]
+  reconciliations     Reconciliation[]
+  posSales            PosSale[]
+  inventoryItems      InventoryItem[]
+  movements           StockMovement[]
+  opnames             StockOpname[]
+  auditLogs           AuditLog[]      @relation("UserAuditLogs")
+  notifications       Notification[]
+  openedShifts        CashierShift[]  @relation("OpenedShifts")
+  closedShifts        CashierShift[]  @relation("ClosedShifts")
+  purchaseOrders      PurchaseOrder[] @relation("UserPurchaseOrders")
+  staffRequests       StaffRequest[]
+}
+
+model Unit {
+  id                  Int      @id @default(autoincrement())
+  tenantId            Int
+  name                String
+  type                String   @default("Sederhana") // Sederhana | Retail
+  retailEnabled       Boolean  @default(false)
+  description         String?
+  balance             Decimal  @default(0) @db.Decimal(18, 2)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  tenant              Tenant        @relation(fields: [tenantId], references: [id])
+  users               User[]
+  transactions        Transaction[]
+  reconciliations     Reconciliation[]
+  inventoryItems      InventoryItem[]
+  posSales            PosSale[]
+  cashierShifts       CashierShift[]
+  suppliers           Supplier[]
+  purchaseOrders      PurchaseOrder[]
+  staffRequests       StaffRequest[]
+  categories          Category[]
+
+  @@unique([tenantId, name])
+  @@index([tenantId])
+}
+
+model Transaction {
+  id              Int       @id @default(autoincrement())
+  tenantId        Int
+  unitId          Int
+  userId          Int
+  transactionDate DateTime
+  type            String    // Debit, Kredit
+  method          String    // Tunai, Transfer
+  category        String
+  amount          Decimal   @db.Decimal(18, 2)
+  description     String?
+  photoUrl        String?
+  status          String    @default("Submitted") // Draft, Submitted, Pending, Approved, Rejected
+  approvedById    Int?
+  approvedAt      DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  tenant          Tenant       @relation(fields: [tenantId], references: [id])
+  unit            Unit         @relation(fields: [unitId], references: [id])
+  user            User         @relation("UserTransactions", fields: [userId], references: [id])
+  approvedBy      User?        @relation("ApprovedTransactions", fields: [approvedById], references: [id])
+  approvals       Approval[]
+
+  @@index([tenantId, unitId])
+  @@index([tenantId, status])
+}
+
+model Approval {
+  id            Int       @id @default(autoincrement())
+  transactionId Int
+  approverId    Int
+  level         String    // Manager, Pimpinan
+  status        String    // Approved, Rejected
+  notes         String?
+  createdAt     DateTime  @default(now())
+
+  transaction   Transaction @relation(fields: [transactionId], references: [id])
+  approver      User        @relation(fields: [approverId], references: [id])
+}
+
+model Reconciliation {
+  id                 Int       @id @default(autoincrement())
+  tenantId           Int
+  unitId             Int
+  userId             Int
+  reconciliationDate DateTime
+  physicalCash       Decimal   @db.Decimal(18, 2)
+  digitalBalance     Decimal   @db.Decimal(18, 2)
+  difference         Decimal   @db.Decimal(18, 2)
+  notes              String?
+  status             String    @default("Pending") // Pending, Validated, Approved
+  approvedById       Int?
+  approvedAt         DateTime?
+  createdAt          DateTime  @default(now())
+
+  tenant             Tenant     @relation(fields: [tenantId], references: [id])
+  unit               Unit       @relation(fields: [unitId], references: [id])
+  user               User       @relation(fields: [userId], references: [id])
+
+  @@index([tenantId, unitId])
+  @@index([tenantId, status])
+}
+
+model Category {
+  id        Int      @id @default(autoincrement())
+  tenantId  Int
+  name      String
+  type      String   // Debit, Kredit
+  unitId    Int?
+  createdAt DateTime @default(now())
+
+  tenant    Tenant    @relation(fields: [tenantId], references: [id])
+  unit      Unit?     @relation(fields: [unitId], references: [id])
+
+  @@unique([tenantId, name, type])
+}
+
+model Supplier {
+  id        Int       @id @default(autoincrement())
+  tenantId  Int
+  unitId    Int
+  name      String
+  contact   String?
+  email     String?
+  phone     String?
+  address   String?
+  createdAt DateTime  @default(now())
+
+  tenant         Tenant           @relation(fields: [tenantId], references: [id])
+  unit           Unit             @relation(fields: [unitId], references: [id])
+  purchaseOrders PurchaseOrder[]  @relation("SupplierPurchaseOrders")
+
+  @@index([tenantId, unitId])
+}
+
+model PurchaseOrder {
+  id           Int       @id @default(autoincrement())
+  tenantId     Int
+  unitId       Int
+  supplierId   Int
+  orderDate    DateTime  @default(now())
+  totalAmount  Decimal   @db.Decimal(18, 2)
+  status       String    @default("Pending") // Pending, Received, Cancelled
+  receivedAt   DateTime?
+  notes        String?
+  createdById  Int
+  createdAt    DateTime  @default(now())
+
+  tenant       Tenant    @relation(fields: [tenantId], references: [id])
+  unit         Unit      @relation(fields: [unitId], references: [id])
+  supplier     Supplier  @relation("SupplierPurchaseOrders", fields: [supplierId], references: [id])
+  createdBy    User      @relation("UserPurchaseOrders", fields: [createdById], references: [id])
+  items        PurchaseOrderItem[]
+
+  @@index([tenantId, unitId, status])
+}
+
+model PurchaseOrderItem {
+  id              Int       @id @default(autoincrement())
+  purchaseOrderId Int
+  inventoryId     Int
+  quantity        Int
+  unitPrice       Decimal   @db.Decimal(18, 2)
+  subtotal        Decimal   @db.Decimal(18, 2)
+
+  purchaseOrder   PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  inventory       InventoryItem @relation("PurchaseOrderInventory", fields: [inventoryId], references: [id])
+
+  @@index([purchaseOrderId])
+}
+
+model InventoryItem {
+  id            Int       @id @default(autoincrement())
+  tenantId      Int
+  unitId        Int
+  name          String
+  sku           String?   @unique
+  category      String?
+  imageUrl      String?
+  buyPrice      Decimal?  @db.Decimal(18, 2)
+  sellPrice     Decimal   @db.Decimal(18, 2)
+  unitOfMeasure String    // pcs, dus, kg, botol
+  stock         Int       @default(0)
+  minStock      Int       @default(0)
+  createdById   Int
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  tenant        Tenant    @relation(fields: [tenantId], references: [id])
+  unit          Unit      @relation(fields: [unitId], references: [id])
+  createdBy     User      @relation(fields: [createdById], references: [id])
+  saleItems     PosSaleItem[]
+  movements     StockMovement[]
+  opnames       StockOpname[]
+  purchaseOrderItems PurchaseOrderItem[] @relation("PurchaseOrderInventory")
+
+  @@index([tenantId, unitId])
+}
+
+model StockMovement {
+  id            Int      @id @default(autoincrement())
+  inventoryId   Int
+  type          String   // IN, OUT
+  quantity      Int
+  note          String?
+  createdById   Int
+  createdAt     DateTime @default(now())
+
+  inventory     InventoryItem @relation(fields: [inventoryId], references: [id], onDelete: Cascade)
+  createdBy     User          @relation(fields: [createdById], references: [id])
+}
+
+model StockOpname {
+  id            Int      @id @default(autoincrement())
+  inventoryId   Int
+  physicalStock Int
+  difference    Int
+  note          String?
+  createdById   Int
+  createdAt     DateTime @default(now())
+
+  inventory     InventoryItem @relation(fields: [inventoryId], references: [id], onDelete: Cascade)
+  createdBy     User          @relation(fields: [createdById], references: [id])
+}
+
+model PosSale {
+  id            Int       @id @default(autoincrement())
+  tenantId      Int
+  unitId        Int
+  totalAmount   Decimal   @db.Decimal(18, 2)
+  paymentMethod String    // Tunai, Transfer
+  status        String    @default("Completed") // Completed, Refunded, Void
+  refundOfId    Int?
+  shiftId       Int?
+  createdAt     DateTime  @default(now())
+  createdById   Int
+
+  tenant        Tenant        @relation(fields: [tenantId], references: [id])
+  unit          Unit          @relation(fields: [unitId], references: [id])
+  createdBy     User          @relation(fields: [createdById], references: [id])
+  refundOf      PosSale?      @relation("PosRefund", fields: [refundOfId], references: [id])
+  refunds       PosSale[]     @relation("PosRefund")
+  items         PosSaleItem[]
+  shift         CashierShift? @relation(fields: [shiftId], references: [id])
+}
+
+model CashierShift {
+  id             Int       @id @default(autoincrement())
+  tenantId       Int
+  unitId         Int
+  openedBy       Int
+  closedBy       Int?
+  openedAt       DateTime  @default(now())
+  closedAt       DateTime?
+  openingCash    Decimal   @db.Decimal(18, 2)
+  closingCash    Decimal?  @db.Decimal(18, 2)
+  cashDifference Decimal?  @db.Decimal(18, 2)
+  note           String?
+  status         String    @default("Open") // Open, Closed
+
+  tenant         Tenant    @relation(fields: [tenantId], references: [id])
+  unit           Unit      @relation(fields: [unitId], references: [id])
+  openedByUser   User      @relation("OpenedShifts", fields: [openedBy], references: [id])
+  closedByUser   User?     @relation("ClosedShifts", fields: [closedBy], references: [id])
+  sales          PosSale[]
+
+  @@index([tenantId, unitId, status])
+}
+
+model PosSaleItem {
+  id            Int       @id @default(autoincrement())
+  posSaleId     Int
+  inventoryId   Int
+  quantity      Int
+  priceAtSale   Decimal   @db.Decimal(18, 2)
+  subtotal      Decimal   @db.Decimal(18, 2)
+  createdAt     DateTime  @default(now())
+
+  posSale       PosSale       @relation(fields: [posSaleId], references: [id], onDelete: Cascade)
+  inventory     InventoryItem @relation(fields: [inventoryId], references: [id])
+}
+
+model AuditLog {
+  id         Int      @id @default(autoincrement())
+  tenantId   Int?
+  actorId    Int
+  action     String   // create, update, delete, approve, reject, config_change
+  entity     String
+  entityId   Int
+  metadata   String?
+  ip         String?
+  userAgent  String?
+  createdAt  DateTime @default(now())
+
+  tenant     Tenant?  @relation(fields: [tenantId], references: [id])
+  actor      User     @relation("UserAuditLogs", fields: [actorId], references: [id])
+}
+
+model Notification {
+  id        Int      @id @default(autoincrement())
+  tenantId  Int
+  userId    Int
+  title     String
+  message   String
+  type      String   // approval, stock, transaction, system, reconciliation
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  tenant    Tenant @relation(fields: [tenantId], references: [id])
+  user      User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, userId, read])
+}
+
+model StaffRequest {
+  id           Int       @id @default(autoincrement())
+  tenantId     Int
+  unitId       Int
+  userId       Int
+  title        String
+  description  String?
+  amount       Decimal   @db.Decimal(18, 2)
+  status       String    @default("Pending") // Pending, Approved, Rejected
+  approvedById Int?
+  approvedAt   DateTime?
+  createdAt    DateTime  @default(now())
+
+  tenant       Tenant    @relation(fields: [tenantId], references: [id])
+  unit         Unit      @relation(fields: [unitId], references: [id])
+  user         User      @relation(fields: [userId], references: [id])
+
+  @@index([tenantId, status])
+}
