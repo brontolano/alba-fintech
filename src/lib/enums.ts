@@ -3,9 +3,6 @@
 export const ROLES = ["Superadmin", "Pimpinan", "Manager", "Staff"] as const
 export type Role = (typeof ROLES)[number]
 
-export const UNITS = ["Kantor", "Kantin", "Koperasi", "All"] as const
-export type UnitName = (typeof UNITS)[number]
-
 export const UNIT_TYPES = ["Sederhana", "Retail"] as const
 export type UnitType = (typeof UNIT_TYPES)[number]
 
@@ -24,9 +21,6 @@ export type ApprovalLevel = (typeof APPROVAL_LEVELS)[number]
 export function isRole(v: string): v is Role {
   return (ROLES as readonly string[]).includes(v)
 }
-export function isUnit(v: string): v is UnitName {
-  return (UNITS as readonly string[]).includes(v)
-}
 export function isUnitType(v: string): v is UnitType {
   return (UNIT_TYPES as readonly string[]).includes(v)
 }
@@ -34,10 +28,6 @@ export function isTxStatus(v: string): v is TxStatus {
   return (TX_STATUSES as readonly string[]).includes(v)
 }
 
-export function isRetailUnit(unit: string): boolean {
-  return unit === "Kantin" || unit === "Koperasi"
-}
-
-export function canUseRetail(role: string, unit: string, retailModuleEnabled: boolean): boolean {
-  return (role === "Manager" || role === "Staff") && isRetailUnit(unit) && retailModuleEnabled
+export function canUseRetail(role: string, unitId: number | null, retailModuleEnabled: boolean): boolean {
+  return (role === "Manager" || role === "Staff") && unitId !== null && retailModuleEnabled
 }

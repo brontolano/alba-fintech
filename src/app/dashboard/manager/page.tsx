@@ -7,19 +7,25 @@ import { prisma } from "@/lib/prisma"
 import { RetailShortcuts } from "@/components/RetailShortcuts"
 
 function formatRupiah(n: number): string {
-  return "Rp " + n.toLocaleString('id-ID')
+  return "Rp " + n.toLocaleString("id-ID")
 }
 
 export default async function ManagerDashboardPage() {
   const session = await getServerSession(authOptions)
-  if (!session) redirect('/login')
+  if (!session) redirect("/login")
 
   const { user } = session
-  const unit = user.unit
+  const unitId = user.unitId
+  const tenantId = user.tenantId
+
+  const where: any = {}
+  if (tenantId) where.tenantId = tenantId
+  if (unitId) where.unitId = unitId
 
   const transactions = await prisma.transaction.findMany({
-    where: unit === "All" ? {} : { unit },
-    orderBy: { transactionDate: 'desc' },
+    where,
+    orderBy: { transactionDate: "desc" },
+    include: { unit: { select: { name: true } } },
   })
 
   const pendingTransactions = transactions.filter(t => t.status === "Pending" || t.status === "Submitted")
@@ -28,6 +34,8 @@ export default async function ManagerDashboardPage() {
   const totalDebit = approvedTransactions.filter(t => t.type === "Debit").reduce((sum, t) => sum + Number(t.amount), 0)
   const totalKredit = approvedTransactions.filter(t => t.type === "Kredit").reduce((sum, t) => sum + Number(t.amount), 0)
   const balance = totalDebit - totalKredit
+
+  const unitName = unitId ? (transactions[0]?.unit?.name || "Unknown") : "All"
 
   return (
     <div className="bg-[#faf9fc] text-[#1a1c1e] font-body min-h-screen pb-28">
@@ -38,11 +46,11 @@ export default async function ManagerDashboardPage() {
             {user.image ? (
               <img src={user.image} alt="Profile" className="w-full h-full object-cover" />
             ) : (
-              <span>{(user.name || 'M').charAt(0).toUpperCase()}</span>
+              <span>{(user.name || "M").charAt(0).toUpperCase()}</span>
             )}
           </Link>
           <div>
-            <h1 className="text-base font-bold text-[#022448]">Manager {unit}</h1>
+            <h1 className="text-base font-bold text-[#022448]">Manager {unitName}</h1>
             <p className="text-xs text-[#43474e]">Panel Kontrol & Verifikasi Unit</p>
           </div>
         </div>
@@ -55,7 +63,7 @@ export default async function ManagerDashboardPage() {
         {/* Unit Summary Card */}
         <section className="bg-[#022448] text-white rounded-3xl p-6 shadow-xl relative overflow-hidden">
           <div className="relative z-10">
-            <p className="text-xs text-[#adc8f5] mb-1 font-medium uppercase tracking-wider">Saldo Kas Unit {unit}</p>
+            <p className="text-xs text-[#adc8f5] mb-1 font-medium uppercase tracking-wider">Saldo Kas Unit {unitName}</p>
             <div className="text-3xl sm:text-4xl font-bold font-mono tracking-tight mb-4">{formatRupiah(balance)}</div>
             <div className="grid grid-cols-2 gap-4 border-t border-white/15 pt-4">
               <div>
@@ -142,9 +150,9 @@ export default async function ManagerDashboardPage() {
                   <div>
                     <div className="flex items-center gap-2 mb-1">
                       <span className="px-2 py-0.5 bg-[#1e3a5f]/10 text-[#1e3a5f] rounded-md text-xs font-semibold">{t.category}</span>
-                      <span className="text-xs text-[#74777f]">{new Date(t.transactionDate).toLocaleDateString('id-ID')}</span>
+                      <span className="text-xs text-[#74777f]">{new Date(t.transactionDate).toLocaleDateString("id-ID")}</span>
                     </div>
-                    <p className="font-bold text-[#1a1c1e]">{t.description || 'Tanpa keterangan'}</p>
+                    <p className="font-bold text-[#1a1c1e]">{t.description || "Tanpa keterangan"}</p>
                   </div>
                   <div className="text-right">
                     <p className="font-mono font-bold text-lg text-[#022448]">{formatRupiah(Number(t.amount))}</p>

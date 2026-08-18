@@ -8,12 +8,19 @@ export async function GET() {
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
   const role = session.user.role
-  const unit = session.user.unit
+  const unitId = session.user.unitId
+  const tenantId = session.user.tenantId
 
-  const where = role === "Pimpinan" ? {} : { unitName: unit }
+  const where: any = {}
+  if (tenantId) where.tenantId = tenantId
+  if (role !== "Pimpinan" && role !== "Superadmin" && unitId) {
+    where.unitId = unitId
+  }
+
   const suppliers = await prisma.supplier.findMany({
     where,
     orderBy: { name: "asc" },
+    include: { unit: { select: { id: true, name: true } } },
   })
 
   return NextResponse.json(suppliers)
@@ -24,27 +31,35 @@ export async function POST(req: Request) {
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
   const role = session.user.role
-  const unit = session.user.unit
+  const unitId = session.user.unitId
+  const tenantId = session.user.tenantId
+
   const body = (await req.json()) as {
     name: string
     contact?: string
     email?: string
     phone?: string
     address?: string
-    unitName?: string
+    unitId?: number
   }
 
-  const unitName = role === "Pimpinan" ? body.unitName || unit : unit
+  const targetUnitId = role === "Pimpinan" ? (body.unitId || unitId) : unitId
+
+  if (!tenantId || !targetUnitId) {
+    return NextResponse.json({ error: "tenantId & unitId required" }, { status: 400 })
+  }
 
   const supplier = await prisma.supplier.create({
     data: {
+      tenantId,
+      unitId: targetUnitId,
       name: body.name,
       contact: body.contact || null,
       email: body.email || null,
       phone: body.phone || null,
       address: body.address || null,
-      unitName,
     },
+    include: { unit: { select: { id: true, name: true } } },
   })
 
   return NextResponse.json(supplier, { status: 201 })

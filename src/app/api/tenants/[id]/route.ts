@@ -2,7 +2,6 @@ import { NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/app/api/auth/[...nextauth]/route"
 import { prisma } from "@/lib/prisma"
-import bcrypt from "bcryptjs"
 
 export async function GET(
   req: Request,
@@ -14,19 +13,20 @@ export async function GET(
   }
 
   const { id } = await params
-  const user = await prisma.user.findUnique({
+  const tenant = await prisma.tenant.findUnique({
     where: { id: Number(id) },
     include: {
-      tenant: { select: { id: true, name: true, appName: true } },
-      unit: { select: { id: true, name: true } },
+      _count: { select: { users: true, units: true } },
+      users: { select: { id: true, email: true, name: true, role: true, unitId: true, isActive: true } },
+      units: { select: { id: true, name: true, type: true, retailEnabled: true, balance: true } },
     },
   })
 
-  if (!user) {
-    return NextResponse.json({ error: "User tidak ditemukan" }, { status: 404 })
+  if (!tenant) {
+    return NextResponse.json({ error: "Tenant tidak ditemukan" }, { status: 404 })
   }
 
-  return NextResponse.json({ ...user, passwordHash: undefined })
+  return NextResponse.json(tenant)
 }
 
 export async function PATCH(
@@ -40,19 +40,23 @@ export async function PATCH(
 
   const { id } = await params
   const body = await req.json()
-  const { name, role, unitId, isActive, password } = body
+  const { name, appName, primaryColor, secondaryColor, subdomain, domain, activeModules, isActive } = body
 
-  const data: any = { name, role, unitId: unitId ? Number(unitId) : null, isActive }
-  if (password) {
-    data.passwordHash = await bcrypt.hash(password, 12)
-  }
-
-  const user = await prisma.user.update({
+  const tenant = await prisma.tenant.update({
     where: { id: Number(id) },
-    data,
+    data: {
+      name,
+      appName,
+      primaryColor,
+      secondaryColor,
+      subdomain,
+      domain,
+      activeModules,
+      isActive,
+    },
   })
 
-  return NextResponse.json({ ...user, passwordHash: undefined })
+  return NextResponse.json(tenant)
 }
 
 export async function DELETE(
@@ -65,6 +69,6 @@ export async function DELETE(
   }
 
   const { id } = await params
-  await prisma.user.delete({ where: { id: Number(id) } })
+  await prisma.tenant.delete({ where: { id: Number(id) } })
   return NextResponse.json({ success: true })
 }

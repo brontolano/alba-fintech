@@ -17,7 +17,8 @@ export const authOptions: NextAuthOptions = {
         }
 
         const user = await prisma.user.findUnique({
-          where: { email: credentials.email }
+          where: { email: credentials.email },
+          include: { unit: { select: { name: true, type: true, retailEnabled: true } } },
         })
 
         if (!user) {
@@ -35,10 +36,12 @@ export const authOptions: NextAuthOptions = {
           email: user.email,
           name: user.name,
           role: user.role,
-          unit: user.unit,
-          unitType: user.unitType,
+          tenantId: user.tenantId,
+          unitId: user.unitId,
+          unit: user.unit?.name,
+          unitType: user.unit?.type,
           image: user.image,
-          retailModuleEnabled: user.retailModuleEnabled,
+          retailModuleEnabled: user.unit?.retailEnabled ?? false,
         }
       }
     })
@@ -48,28 +51,26 @@ export const authOptions: NextAuthOptions = {
       if (user) {
         token.id = user.id
         token.role = user.role
+        token.tenantId = (user as any).tenantId
+        token.unitId = (user as any).unitId
         token.unit = user.unit
-        token.unitType = (user as { unitType?: string }).unitType
+        token.unitType = (user as any).unitType
         token.image = user.image
-        token.retailModuleEnabled = (user as { retailModuleEnabled?: boolean }).retailModuleEnabled
+        token.retailModuleEnabled = (user as any).retailModuleEnabled
       }
 
       if (trigger === "update" && token.id) {
         const current = await prisma.user.findUnique({
           where: { id: Number(token.id) },
-          select: {
-            name: true,
-            image: true,
-            unitType: true,
-            retailModuleEnabled: true,
-          },
+          include: { unit: { select: { name: true, type: true, retailEnabled: true } } },
         })
 
         if (current) {
           token.name = current.name
           token.image = current.image
-          token.unitType = current.unitType
-          token.retailModuleEnabled = current.retailModuleEnabled
+          token.unit = current.unit?.name
+          token.unitType = current.unit?.type
+          token.retailModuleEnabled = current.unit?.retailEnabled ?? false
         }
       }
 
@@ -79,9 +80,11 @@ export const authOptions: NextAuthOptions = {
       if (token && session.user) {
         session.user.id = token.id as string
         session.user.role = token.role as string
+        session.user.tenantId = token.tenantId as number | null
+        session.user.unitId = token.unitId as number | null
         session.user.unit = token.unit as string
-        (session.user as { unitType?: string }).unitType = token.unitType as string
-        (session.user as { retailModuleEnabled?: boolean }).retailModuleEnabled = token.retailModuleEnabled as boolean
+        session.user.unitType = token.unitType as string
+        session.user.retailModuleEnabled = token.retailModuleEnabled as boolean
         session.user.image = token.image as string | null
       }
       return session

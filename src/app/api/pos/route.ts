@@ -5,7 +5,7 @@ import { prisma } from "@/lib/prisma"
 import { canUseRetail } from "@/lib/enums"
 
 type PosBody = {
-  unitName: string
+  unitId: number
   paymentMethod: string
   items: Array<{ inventoryId: number; quantity: number; priceAtSale: number; subtotal: number }>
 }
@@ -15,14 +15,20 @@ export async function GET() {
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
   const role = session.user.role
-  const unit = session.user.unit
+  const unitId = session.user.unitId
+  const tenantId = session.user.tenantId
   const enabled = (session.user as { retailModuleEnabled?: boolean }).retailModuleEnabled === true
 
-  if (!canUseRetail(role, unit, enabled)) {
+  if (!canUseRetail(role, unitId, enabled)) {
     return NextResponse.json({ error: "Retail module disabled" }, { status: 403 })
   }
 
-  const where = role === "Pimpinan" ? {} : { unitName: unit }
+  const where: any = {}
+  if (tenantId) where.tenantId = tenantId
+  if (role !== "Pimpinan" && role !== "Superadmin" && unitId) {
+    where.unitId = unitId
+  }
+
   const sales = await prisma.posSale.findMany({
     where,
     orderBy: { createdAt: "desc" },
@@ -45,25 +51,31 @@ export async function POST(req: Request) {
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
   const role = session.user.role
-  const unit = session.user.unit
+  const unitId = session.user.unitId
+  const tenantId = session.user.tenantId
   const enabled = (session.user as { retailModuleEnabled?: boolean }).retailModuleEnabled === true
 
-  if (!canUseRetail(role, unit, enabled)) {
+  if (!canUseRetail(role, unitId, enabled)) {
     return NextResponse.json({ error: "Retail module disabled" }, { status: 403 })
   }
 
   const body = (await req.json()) as PosBody
-  const { unitName, paymentMethod, items } = body
+  const { unitId: targetUnitId, paymentMethod, items } = body
 
-  if (!unitName || !paymentMethod || !Array.isArray(items) || items.length === 0) {
+  if (!targetUnitId || !paymentMethod || !Array.isArray(items) || items.length === 0) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
+  }
+
+  if (!tenantId) {
+    return NextResponse.json({ error: "tenantId required" }, { status: 400 })
   }
 
   const total = items.reduce((acc, it) => acc + Number(it.subtotal || 0), 0)
 
   const sale = await prisma.posSale.create({
     data: {
-      unitName,
+      tenantId,
+      unitId: targetUnitId,
       paymentMethod,
       totalAmount: total,
       createdById: Number(session.user.id),

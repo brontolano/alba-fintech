@@ -9,8 +9,18 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
+  const where: any = {}
+  if (session.user.tenantId) where.tenantId = session.user.tenantId
+  if (session.user.role === "Manager" && session.user.unitId) {
+    where.unitId = session.user.unitId
+  } else if (session.user.role === "Staff") {
+    where.userId = Number(session.user.id)
+  }
+
   const transactions = await prisma.transaction.findMany({
+    where,
     orderBy: { transactionDate: "desc" },
+    include: { unit: { select: { name: true } } },
   })
 
   let totalDebit = 0
@@ -25,9 +35,10 @@ export async function GET() {
     if (t.type === "Debit") totalDebit += amt
     else totalKredit += amt
 
-    if (!byUnit[t.unit]) byUnit[t.unit] = { debit: 0, kredit: 0 }
-    if (t.type === "Debit") byUnit[t.unit].debit += amt
-    else byUnit[t.unit].kredit += amt
+    const unitName = t.unit?.name || "Unknown"
+    if (!byUnit[unitName]) byUnit[unitName] = { debit: 0, kredit: 0 }
+    if (t.type === "Debit") byUnit[unitName].debit += amt
+    else byUnit[unitName].kredit += amt
 
     if (t.status === "Approved") countApproved++
     else if (t.status === "Pending" || t.status === "Submitted") countPending++

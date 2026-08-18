@@ -5,43 +5,27 @@ import { prisma } from "@/lib/prisma"
 
 export async function GET() {
   const session = await getServerSession(authOptions)
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  }
+  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+
+  const tenantId = session.user.tenantId
+  const where: any = {}
+  if (tenantId) where.tenantId = tenantId
 
   const transactions = await prisma.transaction.findMany({
-    where: { status: "Approved" },
+    where,
+    orderBy: { transactionDate: "desc" },
+    include: { unit: { select: { id: true, name: true } } },
   })
 
-  const units = ["Kantor", "Kantin", "Koperasi"]
-  const byUnit: Record<string, { debit: number; kredit: number; balance: number }> = {}
-
-  for (const u of units) {
-    let debit = 0
-    let kredit = 0
-    for (const t of transactions) {
-      if (t.unit !== u) continue
-      const amt = Number(t.amount)
-      if (t.type === "Debit") debit += amt
-      else kredit += amt
-    }
-    byUnit[u] = { debit, kredit, balance: debit - kredit }
-  }
-
-  const totalDebit = transactions
-    .filter((t) => t.type === "Debit")
-    .reduce((acc, t) => acc + Number(t.amount), 0)
-  const totalKredit = transactions
-    .filter((t) => t.type === "Kredit")
-    .reduce((acc, t) => acc + Number(t.amount), 0)
-
-  const pendingCount = await prisma.transaction.count({ where: { status: "Pending" } })
+  const approved = transactions.filter((t) => t.status === "Approved")
+  const totalDebit = approved.filter((t) => t.type === "Debit").reduce((acc, t) => acc + Number(t.amount), 0)
+  const totalKredit = approved.filter((t) => t.type === "Kredit").reduce((acc, t) => acc + Number(t.amount), 0)
 
   return NextResponse.json({
     totalDebit,
     totalKredit,
     totalBalance: totalDebit - totalKredit,
-    pendingCount,
-    byUnit,
+    totalTransactions: transactions.length,
+    pendingTransactions: transactions.filter((t) => t.status === "Pending").length,
   })
 }

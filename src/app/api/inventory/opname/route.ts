@@ -2,7 +2,7 @@ import { NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/app/api/auth/[...nextauth]/route"
 import { prisma } from "@/lib/prisma"
-import { isUnit, canUseRetail } from "@/lib/enums"
+import { canUseRetail } from "@/lib/enums"
 
 export async function GET(req: Request) {
   const session = await getServerSession(authOptions)
@@ -17,7 +17,7 @@ export async function GET(req: Request) {
 
   const item = await prisma.inventoryItem.findUnique({
     where: { id: inventoryId },
-    select: { id: true, unitName: true },
+    select: { id: true, unitId: true },
   })
 
   if (!item) {
@@ -25,14 +25,15 @@ export async function GET(req: Request) {
   }
 
   const role = session.user.role
-  const unit = session.user.unit
+  const unitId = session.user.unitId
+  const tenantId = session.user.tenantId
   const enabled = (session.user as { retailModuleEnabled?: boolean }).retailModuleEnabled === true
 
-  if (!canUseRetail(role, unit, enabled)) {
+  if (!canUseRetail(role, unitId, enabled)) {
     return NextResponse.json({ error: "Retail module disabled" }, { status: 403 })
   }
 
-  if (role !== "Pimpinan" && role !== "Superadmin" && item.unitName !== unit) {
+  if (role !== "Pimpinan" && role !== "Superadmin" && item.unitId !== unitId) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 })
   }
 
@@ -58,7 +59,7 @@ export async function POST(req: Request) {
 
   const item = await prisma.inventoryItem.findUnique({
     where: { id: Number(inventoryId) },
-    select: { id: true, unitName: true, stock: true },
+    select: { id: true, unitId: true, stock: true },
   })
 
   if (!item) {
@@ -66,14 +67,15 @@ export async function POST(req: Request) {
   }
 
   const role = session.user.role
-  const unit = session.user.unit
+  const unitId = session.user.unitId
+  const tenantId = session.user.tenantId
   const enabled = (session.user as { retailModuleEnabled?: boolean }).retailModuleEnabled === true
 
-  if (!canUseRetail(role, unit, enabled)) {
+  if (!canUseRetail(role, unitId, enabled)) {
     return NextResponse.json({ error: "Retail module disabled" }, { status: 403 })
   }
 
-  if (role !== "Pimpinan" && role !== "Superadmin" && item.unitName !== unit) {
+  if (role !== "Pimpinan" && role !== "Superadmin" && item.unitId !== unitId) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 })
   }
 
