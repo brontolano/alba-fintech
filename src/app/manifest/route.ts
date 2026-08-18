@@ -13,12 +13,12 @@ export async function GET() {
   if (session?.user?.tenantId) {
     const tenant = await prisma.tenant.findUnique({
       where: { id: session.user.tenantId },
-      select: { appName: true, primaryColor: true, logoUrl: true },
+      select: { appName: true, primaryColor: true, logo: true },
     })
     if (tenant) {
       appName = tenant.appName || appName
       primaryColor = tenant.primaryColor || primaryColor
-      logoUrl = tenant.logoUrl || logoUrl
+      if (tenant.logo) logoUrl = tenant.logo
     }
   }
 
