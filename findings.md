@@ -246,4 +246,45 @@ Draft → Submitted → Pending (Manager) → Pending (Pimpinan) → Approved/Re
 
 ---
 
+## 10. Implementation Learnings (2026-08-19)
+
+### Next.js 16 (Turbopack) Gotchas
+- `next.config.ts`: `eslint` key not supported — remove or use `next lint`
+- `middleware.ts` deprecated — use `proxy` middleware instead
+- Build with `npx next build` (no `--no-turbopack` needed)
+- `next/link` children must be `<a>` or single child
+
+### Prisma 7 (Driver Adapters) Gotchas
+- `datasource db { url = env("DATABASE_URL") }` no longer supported in schema
+- Use `prisma.config.ts` with `defineConfig({ datasource: { url: process.env.DATABASE_URL } })`
+- For SQLite: install `@prisma/adapter-better-sqlite3` and pass adapter to PrismaClient
+- For MySQL: built-in adapter works but requires driver adapter in Prisma 7
+
+### Tailwind CSS v4 (CSS Variables) Gotchas
+- Use `@theme` block in CSS for custom colors/spacing/radius
+- `@import "tailwindcss"` replaces `@tailwind base/components/utilities`
+- CSS variables available as `--color-*`, `--spacing-*`, `--radius-*`
+- Custom utilities via `@utility` or direct CSS variable usage
+
+### Material Design 3 Color Tokens
+- Primary: `#022448` (navy), Primary Container: `#1e3a5f`
+- Secondary: `#16677a` (teal), Secondary Container: `#a2e7fd`
+- Tertiary: `#341f00` (amber), Tertiary Container: `#503300`
+- Background: `#faf9fc`, Surface: `#faf9fc`
+- Error: `#ba1a1a`, Error Container: `#ffdad6`
+- Income: `#10b981` (emerald), Expense: `#ef4444` (rose), Warning: `#f59e0b` (amber)
+- Typography: Inter + JetBrains Mono (tabular-nums)
+
+---
+
+## 11. Next Steps (Immediate)
+
+1. **Complete Pimpinan Laporan page** — Grafik Recharts + export Excel/PDF
+2. **Complete Pimpinan Profil page** — Detail, change password, logout
+3. **Notifications page** — List with read/unread, types
+4. **Manager & Staff pages** — Role-specific mobile views
+5. **API layer** — Transaction CRUD, Approval, Reconciliation endpoints
+
+---
+
 > **Update log:** Tambahkan findings baru di sini seiring development. Format: `### YYYY-MM-DD: [Topic]` + bullet points.

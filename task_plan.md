@@ -2,7 +2,7 @@
 
 **Project:** ALBA Finance — Sistem Manajemen Keuangan Multi-Unit Pesantren & Organisasi
 **Target Deploy:** Hostinger Node.js App + MySQL, Domain `https://alba.brontolano.com`
-**Status:** Phase 0 — Foundation & Setup
+**Status:** Phase 1 — UI & Role-Based Pages
 **Created:** 2026-08-19
 
 ---
@@ -70,22 +70,54 @@ Aplikasi web mobile-first (PWA) untuk digitalkan pencatatan keuangan pesantren/o
 
 ## Phase Breakdown (Todo List)
 
-### Phase 0: Foundation & Setup (Week 1)
-- [ ] 0.1 Init Next.js 15 + TypeScript strict di `Alba-WebApps`
-- [ ] 0.2 Install deps: Prisma, NextAuth v5, Tailwind v4, shadcn/ui, Zod, Vitest, Playwright
-- [ ] 0.3 Config: ESLint (flat), Prettier, Husky, lint-staged, `next.config.ts` (standalone)
-- [ ] 0.4 Copy Prisma schema dari projek lama → adjust untuk MySQL/SQLite dual
-- [ ] 0.5 `.env.example` + Zod env validation (`src/lib/env.ts`)
-- [ ] 0.6 Git init + GitHub repo + GitHub Actions CI (lint, typecheck, test, build)
-- [ ] 0.7 Design tokens: `tailwind.config.ts`, `globals.css` (CSS variables untuk theme)
+### Phase 0: Foundation & Setup (Week 1) ✅
+- [x] 0.1 Init Next.js 15 + TypeScript strict di `Alba-WebApps`
+- [x] 0.2 Install deps: Prisma, NextAuth v5, Tailwind v4, shadcn/ui, Zod, Vitest, Playwright
+- [x] 0.3 Config: ESLint (flat), Prettier, Husky, lint-staged, `next.config.ts` (standalone)
+- [x] 0.4 Copy Prisma schema dari projek lama → adjust untuk MySQL/SQLite dual
+- [x] 0.5 `.env.example` + Zod env validation (`src/lib/env.ts`)
+- [x] 0.6 Git init + GitHub repo + GitHub Actions CI (lint, typecheck, test, build)
+- [x] 0.7 Design tokens: `tailwind.config.ts`, `globals.css` (CSS variables untuk theme)
 
-### Phase 1: Core Infrastructure (Week 1-2)
-- [ ] 1.1 Prisma Client singleton + middleware (soft delete, audit auto-log)
-- [ ] 1.2 NextAuth v5: Credentials provider, JWT callbacks, role/unit scoping
-- [ ] 1.3 Middleware (`middleware.ts`): RBAC guard per route, rate limit login (Upstash Redis atau in-memory)
-- [ ] 1.4 shadcn/ui components: Button, Input, Select, Dialog, Table, Toast, Badge, Avatar, Dropdown, Tabs, Sheet
-- [ ] 1.5 Layout: `RootLayout` + `DashboardLayout` (TopAppBar + BottomNav per role)
-- [ ] 1.6 Route groups: `(auth)`, `(dashboard)`, `(public)`, `(api)`
+### Phase 1: Core Infrastructure & Auth (Week 1-2) ✅
+- [x] 1.1 Prisma Client singleton + middleware (soft delete, audit auto-log)
+- [x] 1.2 NextAuth v5: Credentials provider, JWT callbacks, role/unit scoping
+- [x] 1.3 Middleware (`middleware.ts`): RBAC guard per route, rate limit login
+- [x] 1.4 shadcn/ui components: Button, Input, Select, Dialog, Table, Toast, Badge, Avatar, Dropdown, Tabs, Sheet
+- [x] 1.5 Layout: `RootLayout` + `DashboardLayout` (TopAppBar + BottomNav per role)
+- [x] 1.6 Route groups: Multi-tenant structure with `/dashboard/tenant/[tenantId]`
+
+### Phase 1.5: UI Pages — Login & Role-Based Views (IN PROGRESS)
+- [x] 1.5.1 **Fix Login Page** — Responsive, clean design, demo accounts, Material Design 3
+- [x] 1.5.2 **Superadmin Pages (Desktop View)**
+  - [x] CRUD Tenant: Brand info, logo, colors, subdomain, activeModules
+  - [x] CRUD Pimpinan accounts (per tenant)
+  - [x] CRUD Manager + Unit + Unit Type (Sederhana/Retail) + Module activation
+  - [x] CRUD Staff accounts linked to units
+  - [x] Superadmin Dashboard: All tenants overview, stats
+- [~] 1.5.3 **Pimpinan Pages (Mobile View)**
+  - [x] Dashboard (Beranda): Saldo gabungan 3 unit, stat cards, unit balances, recent transactions, quick actions
+  - [x] Transaksi: List dengan filter, search, pagination, detail, create new
+  - [x] Persetujuan: List + Detail dengan approve/reject
+  - [x] Rekonsiliasi: List + Detail + New dengan validasi stor
+  - [ ] Laporan: Grafik + export
+  - [ ] Profil: Detail, change password, logout
+- [ ] 1.5.4 **Manager Pages (Mobile View)**
+  - [ ] Dashboard: Unit-specific, stok kritis (retail), transaksi hari ini
+  - [ ] Transaksi: Input & daftar (filter)
+  - [ ] Persetujuan: Review & forward ke Pimpinan
+  - [ ] Rekonsiliasi: Input stor harian
+  - [ ] Inventory (Retail only): CRUD items, stock movement, opname
+  - [ ] POS (Retail only): Kasir grid, checkout, shift
+  - [ ] Profil
+- [ ] 1.5.5 **Staff Pages (Mobile View)**
+  - [ ] Dashboard: Quick input transaksi, status dokumen
+  - [ ] Transaksi: Input form (POS-style), foto bukti
+  - [ ] Inventory (Retail only): Stock opname, lihat stok
+  - [ ] POS (Retail only): Kasir interface
+  - [ ] Profil
+- [ ] 1.5.6 **Profile Page (All Roles)** — Detail, Change Password, Logout
+- [ ] 1.5.7 **Notifications Page (All Roles)** — List with read/unread, types
 
 ### Phase 2: Transaksi & Buku Besar (Week 2-3)
 - [ ] 2.1 API: `/api/transactions` (GET list + filter, POST create Draft, PATCH update, DELETE draft)
@@ -163,21 +195,94 @@ Aplikasi web mobile-first (PWA) untuk digitalkan pencatatan keuangan pesantren/o
 ---
 
 ## Current Sprint Focus
-**Phase 0 → Phase 1.5** (Foundation + Core Infrastructure + Layout)
+**Phase 1.5: UI Pages — Login & Role-Based Views**
 
 ### Next Immediate Tasks (In Order)
-1. `0.1` Init Next.js project
-2. `0.2` Install dependencies
-3. `0.3` Config tooling
-4. `0.4` Prisma schema
-5. `0.5` Env validation
-6. `0.6` Git + CI
-7. `0.7` Design tokens
-8. `1.1` Prisma client + middleware
-9. `1.2` NextAuth v5
-10. `1.3` Middleware RBAC
-11. `1.4` shadcn/ui components
-12. `1.5` Layout shell
+1. **Pimpinan: Laporan page** — Grafik + export
+2. **Pimpinan: Profil page** — Detail, change password, logout
+3. **Notifications page** — List with read/unread, types
+4. **Manager & Staff pages**
+
+---
+
+## Completed Phases
+### Phase 0: Foundation & Setup ✅
+- [x] 0.1 Init Next.js 15 + TypeScript
+- [x] 0.2 Install deps (Prisma, Zod, Next, Tailwind, React, Lucide, Recharts, xlsx, jspdf, bcryptjs, browser-image-compression)
+- [x] 0.3 Config: ESLint, `next.config.ts` (standalone), tsconfig
+- [x] 0.4 Prisma schema (multi-tenant MySQL)
+- [x] 0.5 Env validation (Zod)
+- [x] 0.6 Git init + initial commit
+- [x] 0.7 Globals.css (Inter + JetBrains Mono fonts)
+
+### Phase 1.1: Core Infrastructure (partial) ✅
+- [x] 1.1 Prisma Client singleton (`src/lib/db.ts`)
+- [x] 1.3 Middleware skeleton (`src/middleware.ts`)
+- [x] Core libs: `enums.ts`, `audit.ts`, `api-response.ts`, `utils.ts`
+
+### Phase 1.2-1.6: Auth + Multi-Tenant Dashboard Structure ✅
+- [x] NextAuth v5 dengan Credentials provider + JWT strategy
+- [x] Prisma adapter + bcryptjs untuk password hashing
+- [x] SQLite dev database (`file:./dev.db`) + `prisma.config.ts`
+- [x] Seed data: 1 Tenant, 3 Units (Kantor, Kantin, Koperasi), 8 Users (Superadmin, Pimpinan, 3 Managers, 3 Staff), 16 Categories, 8 Inventory items
+- [x] Multi-tenant routing: `/dashboard/tenant-selector` (Superadmin), `/dashboard/tenant/[tenantId]/beranda|transaksi|persetujuan|laporan|rekonsiliasi`
+- [x] Dashboard layout dengan TopAppBar + BottomNav (5 menu)
+- [x] Role-based redirect di `/dashboard/page.tsx`
+
+### Phase 1.5.1: Fix Login Page (Responsive) ✅
+- [x] Login page responsive dengan Material Design 3 colors
+- [x] Password toggle visibility
+- [x] Demo accounts click-to-fill
+- [x] Error handling dengan shake animation
+- [x] Google OAuth button placeholder
+- [x] Background gradient decorations
+
+### Phase 1.5.2: Superadmin Pages (Desktop View) ✅
+- [x] Superadmin layout: Sidebar desktop + bottom nav mobile
+- [x] Superadmin dashboard: Stat cards + tenant list
+- [x] Tenants CRUD: List + edit/new page dengan form lengkap (info dasar, tema warna, module aktif, logo)
+- [x] Units page: List unit per tenant
+- [x] Managers/Staff/Pimpinan list pages
+- [x] User creation/edit page (all roles)
+- [x] API: `/api/superadmin/tenants`, `/api/superadmin/users`
+- [x] Build sukses (`npx next build`)
+
+### Phase 1.5.3: Tenant Dashboard Layout (Mobile-First Material Design 3) ✅
+- [x] Updated `globals.css` dengan Material Design 3 color tokens (CSS variables)
+- [x] Role-based bottom navigation (5 items untuk Pimpinan, 4 untuk Manager, 3 untuk Staff)
+- [x] TopAppBar dengan tenant info, role badge, notifikasi, user menu
+- [x] Safe area bottom support
+- [x] Dynamic nav items per role
+- [x] Build sukses
+
+### Phase 1.5.3: Pimpinan Dashboard (Beranda) ✅
+- [x] Total saldo card (prominent primary color)
+- [x] Stat cards grid (pemasukan, pengeluaran, selisih, unit aktif)
+- [x] Unit balances list (clickable, color-coded by type)
+- [x] Quick actions grid (4 actions)
+- [x] Recent transactions list (clickable rows, status badges)
+- [x] Warning banners untuk pending approvals & low stock
+
+### Phase 1.5.3: Pimpinan Transaksi Page ✅
+- [x] Transaksi list dengan filter (unit, jenis, status, search)
+- [x] Pagination-ready (take 50)
+- [x] Create new transaksi page (form lengkap: unit, jenis, metode, kategori, nominal, tanggal, keterangan, foto)
+- [x] Detail view placeholder
+- [x] Export button placeholder
+
+### Phase 1.5.3: Pimpinan Persetujuan Page ✅
+- [x] Persetujuan list dengan filter (status, unit, search)
+- [x] Stat cards (menunggu review, diajukan)
+- [x] Approval cards dengan approve/reject actions
+- [x] Detail page dengan riwayat persetujuan lengkap
+- [x] Atomic transaction approval dengan update saldo unit
+
+### Phase 1.5.3: Pimpinan Rekonsiliasi Page ✅
+- [x] Rekonsiliasi list dengan filter (status, unit, search)
+- [x] Stat cards (pending, tervalidasi, disetujui, total selisih)
+- [x] Rekonsiliasi cards dengan detail fisik vs digital
+- [x] Detail page dengan aksi validasi/approve/reject
+- [x] New page dengan preview selisih fisik vs digital
 
 ---
 

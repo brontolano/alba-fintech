@@ -5,6 +5,9 @@ const nextConfig: NextConfig = {
   images: { unoptimized: true },
   eslint: { ignoreDuringBuilds: true },
   typescript: { ignoreBuildErrors: true },
+  turbopack: {
+    resolveAlias: {},
+  },
 };
 
 export default nextConfig;

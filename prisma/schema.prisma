@@ -1,12 +1,11 @@
-// ALBA Finance — White-Label Multi-Tenant Schema (MySQL / SQLite Compatible)
+// ALBA Finance — White-Label Multi-Tenant Schema (Prisma v7 Compatible)
 
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "mysql"
-  url      = env("DATABASE_URL")
+  provider = "sqlite"
 }
 
 model Tenant {
@@ -76,7 +75,7 @@ model Unit {
   type                String   @default("Sederhana") // Sederhana | Retail
   retailEnabled       Boolean  @default(false)
   description         String?
-  balance             Decimal  @default(0) @db.Decimal(18, 2)
+  balance             Decimal  @default(0)
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
 
@@ -105,7 +104,7 @@ model Transaction {
   type            String    // Debit, Kredit
   method          String    // Tunai, Transfer
   category        String
-  amount          Decimal   @db.Decimal(18, 2)
+  amount          Decimal
   description     String?
   photoUrl        String?
   status          String    @default("Submitted") // Draft, Submitted, Pending, Approved, Rejected
@@ -143,9 +142,9 @@ model Reconciliation {
   unitId             Int
   userId             Int
   reconciliationDate DateTime
-  physicalCash       Decimal   @db.Decimal(18, 2)
-  digitalBalance     Decimal   @db.Decimal(18, 2)
-  difference         Decimal   @db.Decimal(18, 2)
+  physicalCash       Decimal
+  digitalBalance     Decimal
+  difference         Decimal
   notes              String?
   status             String    @default("Pending") // Pending, Validated, Approved
   approvedById       Int?
@@ -198,7 +197,7 @@ model PurchaseOrder {
   unitId       Int
   supplierId   Int
   orderDate    DateTime  @default(now())
-  totalAmount  Decimal   @db.Decimal(18, 2)
+  totalAmount  Decimal
   status       String    @default("Pending") // Pending, Received, Cancelled
   receivedAt   DateTime?
   notes        String?
@@ -219,8 +218,8 @@ model PurchaseOrderItem {
   purchaseOrderId Int
   inventoryId     Int
   quantity        Int
-  unitPrice       Decimal   @db.Decimal(18, 2)
-  subtotal        Decimal   @db.Decimal(18, 2)
+  unitPrice       Decimal
+  subtotal        Decimal
 
   purchaseOrder   PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
   inventory       InventoryItem @relation("PurchaseOrderInventory", fields: [inventoryId], references: [id])
@@ -236,8 +235,8 @@ model InventoryItem {
   sku           String?   @unique
   category      String?
   imageUrl      String?
-  buyPrice      Decimal?  @db.Decimal(18, 2)
-  sellPrice     Decimal   @db.Decimal(18, 2)
+  buyPrice      Decimal?
+  sellPrice     Decimal
   unitOfMeasure String    // pcs, dus, kg, botol
   stock         Int       @default(0)
   minStock      Int       @default(0)
@@ -286,7 +285,7 @@ model PosSale {
   id            Int       @id @default(autoincrement())
   tenantId      Int
   unitId        Int
-  totalAmount   Decimal   @db.Decimal(18, 2)
+  totalAmount   Decimal
   paymentMethod String    // Tunai, Transfer
   status        String    @default("Completed") // Completed, Refunded, Void
   refundOfId    Int?
@@ -311,9 +310,9 @@ model CashierShift {
   closedBy       Int?
   openedAt       DateTime  @default(now())
   closedAt       DateTime?
-  openingCash    Decimal   @db.Decimal(18, 2)
-  closingCash    Decimal?  @db.Decimal(18, 2)
-  cashDifference Decimal?  @db.Decimal(18, 2)
+  openingCash    Decimal
+  closingCash    Decimal?
+  cashDifference Decimal?
   note           String?
   status         String    @default("Open") // Open, Closed
 
@@ -331,8 +330,8 @@ model PosSaleItem {
   posSaleId     Int
   inventoryId   Int
   quantity      Int
-  priceAtSale   Decimal   @db.Decimal(18, 2)
-  subtotal      Decimal   @db.Decimal(18, 2)
+  priceAtSale   Decimal
+  subtotal      Decimal
   createdAt     DateTime  @default(now())
 
   posSale       PosSale       @relation(fields: [posSaleId], references: [id], onDelete: Cascade)
@@ -378,7 +377,7 @@ model StaffRequest {
   userId       Int
   title        String
   description  String?
-  amount       Decimal   @db.Decimal(18, 2)
+  amount       Decimal
   status       String    @default("Pending") // Pending, Approved, Rejected
   approvedById Int?
   approvedAt   DateTime?

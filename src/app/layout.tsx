@@ -1,5 +1,6 @@
-import type { Metadata } from "node_modules/next/types";
+import type { Metadata } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
+import { AuthProvider } from "@/lib/auth-provider";
 import "./globals.css";
 
 const inter = Inter({
@@ -15,7 +16,6 @@ const jetbrainsMono = JetBrains_Mono({
 export const metadata: Metadata = {
   title: "ALBA Finance — Sistem Keuangan Pesantren",
   description: "Manajemen Keuangan Multi-Unit & Retail Pesantren Al Basyariyyah",
-  manifest: "/manifest.json",
 };
 
 export default function RootLayout({
@@ -25,7 +25,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="id" className={`${inter.variable} ${jetbrainsMono.variable}`}>
-      <body className="min-h-screen bg-slate-50 antialiased">{children}</body>
+      <body className="min-h-screen bg-slate-50 antialiased">
+        <AuthProvider>{children}</AuthProvider>
+      </body>
     </html>
   );
 }
