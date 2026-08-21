@@ -10,85 +10,73 @@ import {
   RefreshCw,
   ShoppingCart,
   Package,
+  Bell,
+  User,
+  FileText,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-interface NavItem {
+export interface NavItem {
   href: string;
   label: string;
-  icon: string;
+  icon: keyof typeof ICON_MAP;
 }
 
-interface MobileBottomNavProps {
+const ICON_MAP = {
+  Home: Home,
+  ArrowLeftRight: ArrowLeftRight,
+  CheckCircle: CheckCircle,
+  BarChart3: BarChart3,
+  RefreshCw: RefreshCw,
+  ShoppingCart: ShoppingCart,
+  Package: Package,
+  Bell: Bell,
+  User: User,
+  FileText: FileText,
+} as const;
+
+interface Props {
   items: NavItem[];
   basePath: string;
 }
 
-const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
-  Home,
-  ArrowLeftRight,
-  CheckCircle,
-  BarChart3,
-  RefreshCw,
-  ShoppingCart,
-  Package,
-};
-
-export function MobileBottomNav({ items, basePath }: MobileBottomNavProps) {
+export function MobileBottomNav({ items, basePath }: Props) {
   const pathname = usePathname();
 
-  return (
-    <nav className="fixed bottom-0 left-0 right-0 bg-surface-container-lowest border-t border-outline-variant z-50 md:hidden safe-area-bottom">
-      <div
-        className={cn(
-          "grid max-w-container-max mx-auto",
-          items.length === 3 && "grid-cols-3",
-          items.length === 4 && "grid-cols-4",
-          items.length === 5 && "grid-cols-5"
-        )}
-      >
-        {items.map((item) => {
-          const fullPath = `${basePath}/${item.href}`;
-          const isActive =
-            pathname === fullPath || pathname.startsWith(fullPath + "/");
-          const Icon = iconMap[item.icon] || Home;
+  if (!items.length) return null;
 
-          return (
-            <Link
-              key={item.href}
-              href={fullPath}
-              className={cn(
-                "flex flex-col items-center justify-center py-2 px-1 transition-colors touch-target min-h-[56px]",
-                isActive
-                  ? "text-primary"
-                  : "text-on-surface-variant hover:text-on-surface"
-              )}
-            >
-              <div
+  return (
+    <nav className="fixed bottom-0 left-0 right-0 bg-surface-container-lowest border-t border-outline-variant safe-bottom z-50">
+      <div className="max-w-container-max mx-auto">
+        <div className="flex items-center justify-around h-16">
+          {items.map((item) => {
+            const isActive = pathname === `${basePath}/${item.href}` || pathname === `${basePath}/${item.href}/`;
+            const Icon = ICON_MAP[item.icon];
+            return (
+              <Link
+                key={item.href}
+                href={`${basePath}/${item.href}`}
                 className={cn(
-                  "relative flex items-center justify-center transition-all duration-200",
-                  isActive ? "w-16 h-8 rounded-xl-custom bg-primary-container" : "w-8 h-8"
+                  "flex flex-col items-center justify-center flex-1 h-14 text-xs font-medium transition-colors touch-target",
+                  isActive
+                    ? "text-primary"
+                    : "text-on-surface-variant hover:text-on-surface"
                 )}
               >
                 <Icon
                   className={cn(
-                    "w-5 h-5 transition-all",
-                    isActive && "text-on-primary-container"
+                    "w-5 h-5 mb-0.5",
+                    isActive ? "text-primary" : "text-on-surface-variant group-hover:text-on-surface"
                   )}
                 />
-             </div>
-              <span
-                className={cn(
-                  "font-caption text-caption mt-0.5 truncate max-w-full",
-                  isActive && "font-medium"
-                )}
-              >
-                {item.label}
-             </span>
-           </Link>
-          );
-        })}
-     </div>
-   </nav>
+                <span className="mt-0.5 leading-tight">
+                  {item.label}
+                </span>
+              </Link>
+            );
+          })}
+        </div>
+      </div>
+    </nav>
   );
 }
