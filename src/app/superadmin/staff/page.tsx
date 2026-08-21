@@ -2,106 +2,141 @@ import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import Link from "next/link";
-import { Plus, Edit, User, Building2, Warehouse } from "lucide-react";
+import { Plus } from "lucide-react";
+import { formatDateID } from "@/lib/superadmin";
 import { cn } from "@/lib/utils";
+import { Suspense } from "react";
+import { SuperadminUserToolbar } from "@/components/superadmin/UserToolbar";
+import { toggleUserActiveAction } from "../users/actions";
 
 export const dynamic = "force-dynamic";
 
-export default async function StaffPage() {
+interface Props {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+}
+
+export default async function StaffPage({ searchParams }: Props) {
   const session = await auth();
   if (!session?.user || session.user.role !== "Superadmin") redirect("/login");
 
-  const [staffUsers, tenants] = await Promise.all([
-    prisma.user.findMany({
-      where: { role: "Staff" },
-      include: {
-        tenant: { select: { id: true, name: true, appName: true } },
-        unit: { select: { id: true, name: true, type: true, retailEnabled: true } },
-      },
-      orderBy: { createdAt: "desc" },
-    }),
-    prisma.tenant.findMany({ where: { isActive: true }, select: { id: true, name: true } }),
-  ]);
+  const params = await searchParams;
+  const q = (Array.isArray(params.q) ? params.q[0] : params.q) || "";
+  const status = (Array.isArray(params.status) ? params.status[0] : params.status) || "all";
+
+  const staff = await prisma.user.findMany({
+    where: {
+      role: "Staff",
+      ...(q
+        ? {
+            OR: [
+              { name: { contains: q } },
+              { email: { contains: q } },
+              { tenant: { name: { contains: q } } },
+              { tenant: { appName: { contains: q } } },
+              { unit: { name: { contains: q } } },
+            ],
+          }
+        : {}),
+      ...(status === "active" ? { isActive: true } : status === "inactive" ? { isActive: false } : {}),
+    },
+    include: {
+      tenant: { select: { id: true, name: true, appName: true, primaryColor: true } },
+      unit: { select: { id: true, name: true } },
+    },
+    orderBy: [{ isActive: "desc" }, { name: "asc" }],
+  });
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">Staff Unit</h1>
-          <p className="text-sm text-slate-500 mt-1">Kelola akun Staff (petugas input, kasir, gudang)</p>
-        </div>
+    <div className="space-y-6 max-w-screen-2xl">
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <Suspense fallback={<div className="h-12 flex-1" />}>
+          <SuperadminUserToolbar roleFilter="Staff" />
+        </Suspense>
         <Link
           href="/superadmin/users/new?role=Staff"
-          className="bg-navy hover:bg-navy/90 text-white px-4 py-2.5 rounded-xl font-medium text-sm flex items-center gap-2"
+          className="inline-flex items-center gap-2 bg-primary text-on-primary px-4 py-2.5 rounded-xl-custom font-medium text-sm hover:bg-primary/90 transition-colors"
         >
           <Plus className="w-4 h-4" />
           Staff Baru
         </Link>
       </div>
 
-      <div className="bg-white rounded-xl border border-slate-100 overflow-hidden">
+      <div className="bg-surface-container-lowest rounded-xl-custom border border-outline-variant overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full">
+          <table className="w-full min-w-[860px]">
             <thead>
-              <tr className="bg-slate-50 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
-                <th className="p-4">Nama</th>
-                <th className="p-4">Email</th>
-                <th className="p-4">Tenant</th>
-                <th className="p-4">Unit</th>
-                <th className="p-4">Tipe Unit</th>
-                <th className="p-4">Status</th>
-                <th className="p-4 text-right">Aksi</th>
+              <tr className="bg-surface-container-low text-left text-xs font-medium text-on-surface-variant uppercase tracking-wider">
+                <th className="px-5 py-3">Nama</th>
+                <th className="px-5 py-3">Email</th>
+                <th className="px-5 py-3">Tenant</th>
+                <th className="px-5 py-3">Unit</th>
+                <th className="px-5 py-3">Status</th>
+                <th className="px-5 py-3">Dibuat</th>
+                <th className="px-5 py-3 text-center">Aksi</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
-              {staffUsers.length === 0 ? (
+            <tbody className="divide-y divide-outline-variant">
+              {staff.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="p-8 text-center text-slate-500">
-                    Belum ada akun Staff
+                  <td colSpan={7} className="px-5 py-12 text-center text-on-surface-variant">
+                    Tidak ada staff ditemukan
                   </td>
                 </tr>
-              ) : (
-                staffUsers.map((user) => (
-                  <tr key={user.id} className="hover:bg-slate-50">
-                    <td className="p-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-emerald/10 rounded-full flex items-center justify-center text-emerald font-medium">
-                          {user.name?.charAt(0) || "U"}
-                        </div>
-                        <div>
-                          <p className="font-medium text-slate-900">{user.name}</p>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="p-4 text-slate-700">{user.email}</td>
-                    <td className="p-4 text-slate-700">{user.tenant?.appName || "-"}</td>
-                    <td className="p-4 text-slate-700">{user.unit?.name || "-"}</td>
-                    <td className="p-4">
-                      <span className={cn("inline-flex px-2 py-0.5 rounded text-xs font-medium",
-                        user.unit?.type === "Retail" ? "bg-emerald/10 text-emerald" : "bg-navy/10 text-navy")}>
-                        {user.unit?.type || "-"}
-                      </span>
-                    </td>
-                    <td className="p-4">
-                      <span className={cn("inline-flex px-2 py-0.5 rounded text-xs font-medium",
-                        user.isActive ? "bg-emerald/10 text-emerald" : "bg-rose/10 text-rose")}>
-                        {user.isActive ? "Aktif" : "Non-aktif"}
-                      </span>
-                    </td>
-                    <td className="p-4 text-right">
-                      <div className="flex items-center justify-end gap-1">
-                        <Link
-                          href={`/superadmin/users/${user.id}`}
-                          className="p-1 text-slate-600 hover:text-navy rounded hover:bg-slate-100 transition"
-                          title="Edit"
-                        >
-                          <Edit className="w-4 h-4" />
-                        </Link>
-                      </div>
-                    </td>
-                  </tr>
-                ))
               )}
+              {staff.map((s) => (
+                <tr key={s.id} className="hover:bg-surface-container-low/50">
+                  <td className="px-5 py-3.5">
+                    <div className="flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-full bg-secondary-container text-on-secondary-container flex items-center justify-center font-bold text-sm">
+                        {s.name.charAt(0).toUpperCase()}
+                      </div>
+                      <p className="font-medium text-on-surface">{s.name}</p>
+                    </div>
+                  </td>
+                  <td className="px-5 py-3.5 text-on-surface-variant text-sm">{s.email}</td>
+                  <td className="px-5 py-3.5">
+                    {s.tenant ? (
+                      <div className="flex items-center gap-2">
+                        <div
+                          className="w-6 h-6 rounded-lg flex items-center justify-center text-on-primary text-xs font-bold"
+                          style={{ backgroundColor: s.tenant.primaryColor }}
+                        >
+                          {s.tenant.name.charAt(0).toUpperCase()}
+                        </div>
+                        <span className="text-on-surface text-sm">
+                          {s.tenant.appName || s.tenant.name}
+                        </span>
+                      </div>
+                    ) : (
+                      <span className="text-on-surface-variant">—</span>
+                    )}
+                  </td>
+                  <td className="px-5 py-3.5 text-on-surface text-sm">{s.unit?.name || "—"}</td>
+                  <td className="px-5 py-3.5">
+                    <form action={toggleUserActiveAction} className="inline">
+                      <input type="hidden" name="userId" value={s.id} />
+                      <button
+                        type="submit"
+                        className={cn(
+                          "inline-flex px-2 py-0.5 rounded-xl-custom font-caption text-capitalize transition-colors",
+                          s.isActive ? "bg-income/10 text-income" : "bg-surface-container-high text-on-surface-variant"
+                        )}
+                      >
+                        {s.isActive ? "Aktif" : "Non-aktif"}
+                      </button>
+                    </form>
+                  </td>
+                  <td className="px-5 py-3.5 text-on-surface-variant text-sm">{formatDateID(s.createdAt)}</td>
+                  <td className="px-5 py-3.5 text-center">
+                    <Link
+                      href={`/superadmin/users/${s.id}`}
+                      className="inline-flex items-center gap-1 text-primary hover:text-primary/80 text-sm font-medium"
+                    >
+                      Edit
+                    </Link>
+                  </td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>
