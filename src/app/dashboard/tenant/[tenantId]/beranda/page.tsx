@@ -154,7 +154,7 @@ export default async function BerandaPage({ params }: BerandaPageProps) {
   const incomeThisMonth = stats.find((s) => s.type === "Debit")?._sum.amount || 0;
   const expenseThisMonth = stats.find((s) => s.type === "Kredit")?._sum.amount || 0;
 
-  const pendingCount = user.role === "Pimpinan" || user.role === "Manager"
+  const pendingCount = user.role === "Pimpinan" || (user.role === "Manager" && user.unitId)
     ? await prisma.transaction.count({
         where: {
           tenantId: tenantIdNum,

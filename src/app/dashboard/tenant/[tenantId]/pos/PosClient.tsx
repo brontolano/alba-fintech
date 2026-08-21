@@ -67,7 +67,7 @@ function PosSaleCard({ sale }: { sale: Sale }) {
       </div>
       <div className="mt-4 pt-4 border-t border-outline-variant flex flex-col sm:flex-row gap-3">
         <Link
-          href={`/dashboard/tenant/${sale.id}/pos/${sale.id}`}
+          href={`/dashboard/tenant/${tenantId}/pos/${sale.id}`}
           className="flex-1 sm:w-auto bg-primary hover:bg-primary/90 text-on-primary py-2.5 rounded-xl-custom font-medium text-sm flex items-center justify-center gap-2 touch-target transition-colors"
         >
           <span className="w-4 h-4" />

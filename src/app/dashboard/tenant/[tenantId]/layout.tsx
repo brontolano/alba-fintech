@@ -2,16 +2,8 @@ import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { prisma } from "@/lib/db";
-import { Building2, LogOut, Bell, Menu, User, Settings, ChevronLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
-
-const navItems = [
-  { href: "beranda", label: "Beranda", icon: Building2 },
-  { href: "transaksi", label: "Transaksi", icon: "💰" },
-  { href: "persetujuan", label: "Persetujuan", icon: "✅" },
-  { href: "laporan", label: "Laporan", icon: "📊" },
-  { href: "rekonsiliasi", label: "Rekonsiliasi", icon: "🔄" },
-];
+import { MobileBottomNav } from "@/components/mobile/MobileBottomNav";
 
 interface TenantLayoutProps {
   children: React.ReactNode;
@@ -33,174 +25,136 @@ export default async function TenantDashboardLayout({
   const user = session.user;
   const role = user.role as string;
 
-  // Validate tenant access
   if (role !== "Superadmin" && user.tenantId !== tenantIdNum) {
     redirect("/dashboard/tenant-selector");
   }
 
   const tenant = await prisma.tenant.findUnique({
     where: { id: tenantIdNum },
-    select: { id: true, name: true, appName: true, primaryColor: true },
+    select: { id: true, name: true, appName: true, primaryColor: true, secondaryColor: true },
   });
 
-  if (!tenant) {
-    redirect("/dashboard/tenant-selector");
+  if (!tenant) redirect("/dashboard/tenant-selector");
+
+  // Determine unit type for current user
+  let unitType: "Sederhana" | "Retail" = "Sederhana";
+  let retailEnabled = false;
+
+  if (user.unitId) {
+    const unit = await prisma.unit.findUnique({
+      where: { id: user.unitId },
+      select: { type: true, retailEnabled: true },
+    });
+    if (unit) {
+      unitType = unit.type as "Sederhana" | "Retail";
+      retailEnabled = unit.retailEnabled;
+    }
   }
 
-  // Determine which nav items to show based on role
-  const getRoleNavItems = () => {
-    const baseItems = [
-      { href: "beranda", label: "Beranda", icon: Building2 },
-    ];
+  // Pimpinan sees all units — check if ANY unit is retail
+  if (role === "Pimpinan") {
+    const retailUnits = await prisma.unit.count({
+      where: { tenantId: tenantIdNum, type: "Retail" },
+    });
+    retailEnabled = retailUnits > 0;
+  }
 
-    if (role === "Pimpinan") {
-      return [
-        ...baseItems,
-        { href: "transaksi", label: "Transaksi", icon: "💰" },
-        { href: "persetujuan", label: "Persetujuan", icon: "✅" },
-        { href: "laporan", label: "Laporan", icon: "📊" },
-        { href: "rekonsiliasi", label: "Rekonsiliasi", icon: "🔄" },
-      ];
-    }
-
-    if (role === "Manager") {
-      return [
-        ...baseItems,
-        { href: "transaksi", label: "Transaksi", icon: "💰" },
-        { href: "persetujuan", label: "Persetujuan", icon: "✅" },
-        { href: "rekonsiliasi", label: "Rekonsiliasi", icon: "🔄" },
-      ];
-    }
-
-    // Staff
-    return [
-      ...baseItems,
-      { href: "transaksi", label: "Transaksi", icon: "💰" },
-      { href: "persetujuan", label: "Status", icon: "📋" },
-    ];
-  };
-
-  const roleNavItems = getRoleNavItems();
+  // Build nav items based on role + unit type
+  const navItems = getNavItems(role, retailEnabled);
 
   return (
     <div className="min-h-screen bg-background flex flex-col pb-safe">
       {/* Top App Bar */}
       <header className="sticky top-0 z-40 bg-surface-container-lowest border-b border-outline-variant">
-        <div className="flex items-center justify-between px-space-4 h-14">
-          <div className="flex items-center gap-3">
-            <Link
-              href={`/dashboard/tenant/${tenantId}/beranda`}
-              className="flex items-center gap-2"
+        <div className="flex items-center justify-between px-4 h-14 max-w-container-max mx-auto">
+          <Link
+            href={`/dashboard/tenant/${tenantId}/beranda`}
+            className="flex items-center gap-2 touch-target"
+          >
+            <div
+              className="w-8 h-8 rounded-xl-custom flex items-center justify-center text-on-primary font-bold text-sm"
+              style={{ backgroundColor: tenant.primaryColor }}
             >
-              <Building2 className="w-6 h-6 text-primary" />
-              <span className="font-semibold text-primary hidden sm:block">
-                {tenant.appName || tenant.name}
-              </span>
-            </Link>
-            <span className="hidden sm:block text-on-surface-variant">|</span>
-            <span className="text-xs font-medium px-2 py-0.5 bg-income/10 text-income rounded-xl-custom">
-              {role === "Superadmin"
-                ? "Superadmin"
-                : role === "Pimpinan"
-                ? "Pimpinan"
-                : role === "Manager"
-                ? "Manager"
-                : "Staff"}
+              {tenant.appName.charAt(0)}
+            </div>
+            <span
+              className="font-semibold hidden sm:block"
+              style={{ color: tenant.primaryColor }}
+            >
+              {tenant.appName}
             </span>
-          </div>
+          </Link>
 
           <div className="flex items-center gap-2">
-            {/* Notifications */}
             <Link
               href={`/dashboard/tenant/${tenantId}/notifikasi`}
-              className="relative p-2 rounded-lg hover:bg-surface-container-low transition-colors touch-target"
+              className="relative p-2 rounded-xl-custom hover:bg-surface-container-low transition-colors touch-target"
             >
-              <Bell className="w-5 h-5 text-on-surface-variant" />
-              <span className="absolute -top-1 -right-1 w-4 h-4 bg-error text-on-error text-xs font-medium rounded-full flex items-center justify-center">
-                3
-              </span>
+              <svg className="w-5 h-5 text-on-surface-variant" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+              </svg>
             </Link>
 
-            {/* User Menu */}
-            <div className="relative">
-              <button
-                className="flex items-center gap-2 p-1.5 rounded-lg hover:bg-surface-container-low transition-colors touch-target"
-                aria-label="User menu"
-              >
-                <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center text-primary font-medium text-sm">
-                  {user.name?.charAt(0) || "U"}
-                </div>
-                <span className="hidden sm:block text-sm font-medium text-on-surface">
-                  {user.name}
-                </span>
-              </button>
-
-              <div className="absolute right-0 mt-2 w-48 bg-surface-container-lowest rounded-xl-custom shadow-lg border border-outline-variant py-1 hidden group-hover:block">
-                <div className="px-space-4 py-2 border-b border-outline-variant">
-                  <p className="font-caption text-caption text-on-surface-variant uppercase tracking-wider">
-                    Login sebagai
-                  </p>
-                  <p className="font-body text-body text-on-surface">{user.name}</p>
-                  <p className="font-caption text-caption text-on-surface-variant">{user.email}</p>
-                </div>
-                <Link
-                  href={`/dashboard/tenant/${tenantId}/profil`}
-                  className="flex items-center gap-2 px-space-4 py-2 font-body text-body text-on-surface hover:bg-surface-container-low rounded-none"
-                >
-                  <User className="w-5 h-5" />
-                  Profil
-                </Link>
-                <Link
-                  href="/dashboard/settings"
-                  className="flex items-center gap-2 px-space-4 py-2 font-body text-body text-on-surface hover:bg-surface-container-low rounded-none"
-                >
-                  <Settings className="w-5 h-5" />
-                  Pengaturan
-                </Link>
-                <form
-                  action={async () => {
-                    "use server";
-                    await (await import("@/lib/auth")).signOut({ callbackUrl: "/login" });
-                  }}
-                >
-                  <button
-                    type="submit"
-                    className="flex items-center gap-2 w-full px-space-4 py-2 font-body text-body text-error hover:bg-error-container rounded-none"
-                  >
-                    <LogOut className="w-5 h-5" />
-                    Keluar
-                  </button>
-                </form>
+            <Link
+              href={`/dashboard/tenant/${tenantId}/profil`}
+              className="flex items-center gap-2 p-1.5 rounded-xl-custom hover:bg-surface-container-low transition-colors touch-target"
+            >
+              <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center text-primary font-medium text-sm">
+                {user.name?.charAt(0) || "U"}
               </div>
-            </div>
+              <span className="hidden sm:block font-medium text-sm text-on-surface">
+                {user.name}
+              </span>
+            </Link>
           </div>
         </div>
       </header>
 
       {/* Main Content */}
-      <main className="flex-1 pt-4 pb-24 px-space-4 sm:pb-4 max-w-container-max mx-auto">
+      <main className="flex-1 pt-4 pb-24 px-4 max-w-container-max mx-auto w-full">
         {children}
       </main>
 
-      {/* Bottom Navigation (Mobile) - Material Design 3 */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-surface-container-lowest border-t border-outline-variant z-50 md:hidden safe-area-bottom">
-        <div className="grid grid-cols-5 max-w-container-max mx-auto">
-          {roleNavItems.map((item) => (
-            <Link
-              key={item.href}
-              href={`/dashboard/tenant/${tenantId}/${item.href}`}
-              className="flex flex-col items-center justify-center py-2 px-1 text-on-surface-variant active:text-primary transition-colors touch-target"
-            >
-              {typeof item.icon === "string" ? (
-                <span className="text-xl mb-1">{item.icon}</span>
-              ) : (
-                <item.icon className="w-6 h-6 mb-1" />
-              )}
-              <span className="font-caption text-caption">{item.label}</span>
-            </Link>
-          ))}
-        </div>
-      </nav>
+      {/* Bottom Navigation */}
+      <MobileBottomNav
+        items={navItems}
+        basePath={`/dashboard/tenant/${tenantId}`}
+      />
     </div>
   );
+}
+
+// ─── Nav Items Builder ─────────────────────────────────
+
+interface NavItem {
+  href: string;
+  label: string;
+  icon: string; // lucide icon name
+}
+
+function getNavItems(role: string, retailEnabled: boolean): NavItem[] {
+  const items: NavItem[] = [
+    { href: "beranda", label: "Beranda", icon: "Home" },
+    { href: "transaksi", label: "Transaksi", icon: "ArrowLeftRight" },
+  ];
+
+  if (role === "Pimpinan") {
+    items.push({ href: "persetujuan", label: "Persetujuan", icon: "CheckCircle" });
+    items.push({ href: "laporan", label: "Laporan", icon: "BarChart3" });
+    items.push({ href: "rekonsiliasi", label: "Rekon", icon: "RefreshCw" });
+  } else if (role === "Manager") {
+    items.push({ href: "persetujuan", label: "Persetujuan", icon: "CheckCircle" });
+    if (retailEnabled) {
+      items.push({ href: "pos", label: "POS", icon: "ShoppingCart" });
+      items.push({ href: "inventory", label: "Stok", icon: "Package" });
+    }
+  } else {
+    // Staff
+    if (retailEnabled) {
+      items.push({ href: "pos", label: "Kasir", icon: "ShoppingCart" });
+      items.push({ href: "inventory", label: "Stok", icon: "Package" });
+    }
+  }
+
+  return items;
 }
